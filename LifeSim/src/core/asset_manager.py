@@ -27,7 +27,13 @@ class AssetManager:
             "coffee": "coffee.png",
             "npc_villager": "npc_villager.png",
             "house": "house.png", # <--- AJOUT
-            "bed": "bed.png"
+            "bed": "bed.png",
+            "table": "table.png",
+            "chair": "chair.png",
+            "kitchen": "kitchen.png",
+            "fridge": "fridge.png",
+            "toilet": "toilet.png",
+            "sofa": "sofa.png"
         }
 
         print(f"📂 Chargement des images depuis : {img_dir}")

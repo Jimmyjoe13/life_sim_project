@@ -16,7 +16,7 @@ from src.entities.shop import Shop
 from src.core.save_manager import SaveManager
 from src.entities.workplace import Workplace
 from src.entities.npc import NPC
-from src.entities.house import House  # <--- IMPORT DE LA MAISON
+from src.entities.house import House
 
 class Game:
     def __init__(self):
@@ -42,18 +42,20 @@ class Game:
         self.workplace = Workplace(100, 400)
         self.workplace.set_sprite(self.assets.get_image("office"))
         
-        # 4. MAISON
+        # 4. MAISON (CONFIGURATION COMPLÈTE)
         self.house = House(300, 50)
-        self.house.set_sprites(self.assets.get_image("house"), self.assets.get_image("bed"))
+        # On définit l'image extérieure
+        self.house.set_outdoor_sprite(self.assets.get_image("house"))
+        # On configure l'intérieur (Meubles, zones)
+        self.house.setup_interior(self.assets)
 
         # 5. PNJS
         self.npcs = []
-        
         bob = NPC("Bob", 300, 200, [
             "Belle journée pour coder !",
             "J'ai entendu dire que le café au Shop est excellent.",
-            "Il faut travailler dur au bureau pour survivre ici.",
-            "Ta nouvelle maison a l'air confortable !"
+            "Ta nouvelle maison a l'air super confortable !",
+            "Il paraît qu'on peut s'asseoir sur le canapé maintenant ?"
         ])
         bob.set_sprite(self.assets.get_image("npc_villager"))
         self.npcs.append(bob)
@@ -79,20 +81,20 @@ class Game:
         """Gère la transition entre l'extérieur et l'intérieur"""
         if new_location == "house":
             self.location = "house"
-            # On place le joueur au centre de la pièce
+            # On place le joueur au centre de la pièce (Entrée)
             self.player.position = [SCREEN_WIDTH // 2, SCREEN_HEIGHT - 120]
             self.last_message = "Maison douce maison..."
             self.message_timer = 120
             
         elif new_location == "world":
             self.location = "world"
-            # On replace le joueur devant la porte
+            # On replace le joueur devant la porte extérieure
             self.player.position = list(self.house.entry_point)
 
     def handle_events(self):
         keys = pygame.key.get_pressed()
         
-        # --- LOGIQUE DE SORTIE DE MAISON (CONTINUE) ---
+        # --- LOGIQUE DE SORTIE DE MAISON ---
         if self.location == "house":
             # Si le joueur va trop bas dans la maison, il sort
             if self.player.position[1] > SCREEN_HEIGHT - 40:
@@ -102,21 +104,21 @@ class Game:
         in_shop_zone = False
         in_work_zone = False
         can_enter_house = False
-        can_sleep = False
         nearby_npc = None
+        interact_obj = None # L'objet touché dans la maison
 
         if self.location == "world":
             in_shop_zone = self.shop.check_collision(self.player.rect)
             in_work_zone = self.workplace.check_collision(self.player.rect)
             can_enter_house = self.house.check_entry(self.player.rect)
-            
             for npc in self.npcs:
                 if npc.check_collision(self.player.rect):
                     nearby_npc = npc
                     break
         
         elif self.location == "house":
-            can_sleep = self.house.check_sleep(self.player.rect)
+            # On demande à la maison quel meuble on touche
+            interact_obj = self.house.get_interactable_object(self.player.rect)
 
         # --- BOUCLE D'ÉVÉNEMENTS ---
         for event in pygame.event.get():
@@ -130,7 +132,6 @@ class Game:
 
                 # --- ACTIONS DU MONDE ---
                 if self.location == "world":
-                    # Shop
                     if in_shop_zone:
                         if event.key == pygame.K_1:
                             self.last_message = self.shop.try_buy_item(self.player, 0)
@@ -139,28 +140,37 @@ class Game:
                             self.last_message = self.shop.try_buy_item(self.player, 1)
                             self.message_timer = 120
 
-                    # Travail
                     if in_work_zone and event.key == pygame.K_SPACE:
                         self.last_message = self.workplace.work(self.player)
                         self.message_timer = 120
 
-                    # PNJ
                     if nearby_npc and event.key == pygame.K_t:
                         self.last_message = nearby_npc.talk()
                         self.message_timer = 180
                     
-                    # Entrer Maison
                     if can_enter_house and event.key == pygame.K_SPACE:
                         self.switch_location("house")
 
-                # --- ACTIONS DE LA MAISON ---
-                elif self.location == "house":
-                    # Dormir
-                    if can_sleep and event.key == pygame.K_SPACE:
-                        self.player.stats.energy = 100
-                        self.player.stats.health += 10
-                        self.last_message = "Zzz... Tu te sens reposé !"
-                        self.message_timer = 120
+                # --- ACTIONS DE LA MAISON (NOUVEAU) ---
+                elif self.location == "house" and interact_obj:
+                    obj_type = interact_obj["type"]
+                    
+                    if event.key == pygame.K_SPACE:
+                        if obj_type == "bed":
+                            self.player.stats.energy = 100
+                            self.player.stats.health += 10
+                            self.last_message = "Zzz... Une bonne nuit de sommeil !"
+                            self.message_timer = 120
+                        elif obj_type == "kitchen" or obj_type == "fridge":
+                            self.last_message = "Le frigo est vide... Il faut aller au Shop !"
+                            self.message_timer = 120
+                        elif obj_type == "toilet":
+                            self.last_message = "Occupé..."
+                            self.message_timer = 60
+                        elif obj_type == "sofa":
+                            self.last_message = "Petite pause Netflix."
+                            self.player.stats.energy += 5 # Petit bonus repos
+                            self.message_timer = 120
 
                 # --- ACTIONS GLOBALES ---
                 if event.key == pygame.K_F5:
@@ -193,6 +203,26 @@ class Game:
         else:
             self.last_message = ""
 
+    def draw_house_interior(self):
+        """Dessine l'intérieur détaillé de la maison"""
+        # 1. Sols
+        # Parquet général (Salon/Chambre)
+        pygame.draw.rect(self.screen, (210, 180, 140), (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
+        # Carrelage Cuisine (Bas Gauche) - Gris clair
+        pygame.draw.rect(self.screen, (200, 200, 200), (0, SCREEN_HEIGHT//2, SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
+        # Carrelage Salle de bain (Haut Droite) - Bleu très clair
+        pygame.draw.rect(self.screen, (220, 220, 255), (SCREEN_WIDTH//2, 0, SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
+
+        # 2. Murs de séparation (Lignes grises)
+        # Verticale milieu
+        pygame.draw.line(self.screen, (100, 100, 100), (SCREEN_WIDTH//2, 0), (SCREEN_WIDTH//2, SCREEN_HEIGHT-100), 8)
+        # Horizontale milieu
+        pygame.draw.line(self.screen, (100, 100, 100), (0, SCREEN_HEIGHT//2), (SCREEN_WIDTH, SCREEN_HEIGHT//2), 8)
+
+        # 3. Affichage des objets
+        for obj in self.house.interior_objects:
+            self.screen.blit(obj["sprite"], obj["rect"])
+
     def draw(self):
         # 1. RENDU DU DÉCOR (Selon le lieu)
         if self.location == "world":
@@ -202,29 +232,20 @@ class Game:
             if self.workplace.sprite: self.screen.blit(self.workplace.sprite, self.workplace.rect)
             if self.shop.sprite: self.screen.blit(self.shop.sprite, self.shop.rect)
 
-            # PNJs (Uniquement dehors)
+            # PNJs
             for npc in self.npcs:
                 if npc.sprite:
                     shadow_pos = (npc.rect.centerx - 10, npc.rect.bottom - 5)
                     pygame.draw.ellipse(self.screen, (30, 80, 30), (shadow_pos[0], shadow_pos[1], 20, 8))
                     self.screen.blit(npc.sprite, npc.rect)
-                    
-                    # Nom
                     name_surf = self.font.render(npc.name, True, (200, 255, 200))
                     text_x = npc.rect.centerx - (name_surf.get_width() // 2)
                     self.screen.blit(name_surf, (text_x, npc.rect.top - 20))
 
         elif self.location == "house":
-            self.screen.fill((210, 180, 140)) # Beige Parquet/Bois
-            
-            # Tapis déco
-            pygame.draw.rect(self.screen, (100, 50, 50), (SCREEN_WIDTH//2 - 50, SCREEN_HEIGHT - 100, 100, 60))
-            
-            # Lit
-            if self.house.bed_sprite:
-                self.screen.blit(self.house.bed_sprite, self.house.bed_rect)
+            self.draw_house_interior()
 
-        # 2. JOUEUR (Toujours visible)
+        # 2. JOUEUR
         if self.player.sprite:
             shadow_pos = (self.player.rect.centerx - 10, self.player.rect.bottom - 5)
             pygame.draw.ellipse(self.screen, (30, 80, 30), (shadow_pos[0], shadow_pos[1], 20, 8))
@@ -260,7 +281,7 @@ class Game:
             text_surf = self.font.render(line, True, color)
             self.screen.blit(text_surf, (10, 10 + i * 20))
 
-        # Bulle Dialogue / Message
+        # Bulle Dialogue
         if self.last_message:
             box_rect = pygame.Rect(100, SCREEN_HEIGHT - 100, SCREEN_WIDTH - 200, 80)
             pygame.draw.rect(self.screen, (0, 0, 0), box_rect)
@@ -269,7 +290,7 @@ class Game:
             text_rect = msg_surf.get_rect(center=box_rect.center)
             self.screen.blit(msg_surf, text_rect)
 
-        # --- MENUS CONTEXTUELS (DYNAMIQUE SELON LE LIEU) ---
+        # --- MENUS CONTEXTUELS ---
         if self.location == "world":
             if self.shop.check_collision(self.player.rect):
                 self.draw_context_menu(self.shop.rect, "[1] Pomme(10) [2] Café(25)")
@@ -283,12 +304,24 @@ class Game:
             for npc in self.npcs:
                 if npc.check_collision(self.player.rect):
                     self.draw_context_menu(npc.rect, f"[T] Parler à {npc.name}")
-                    
+
         elif self.location == "house":
-            if self.house.check_sleep(self.player.rect):
-                self.draw_context_menu(self.house.bed_rect, "[ESPACE] Dormir")
+            # On vérifie quel objet on touche
+            interact_obj = self.house.get_interactable_object(self.player.rect)
             
-            # Indicateur de sortie
+            if interact_obj:
+                obj_type = interact_obj["type"]
+                label = ""
+                if obj_type == "bed": label = "[ESPACE] Dormir"
+                elif obj_type == "kitchen": label = "Cuisine"
+                elif obj_type == "fridge": label = "Frigo"
+                elif obj_type == "toilet": label = "..."
+                elif obj_type == "sofa": label = "[ESPACE] S'asseoir"
+                
+                if label:
+                    self.draw_context_menu(interact_obj["rect"], label)
+            
+            # Sortie
             if self.player.position[1] > SCREEN_HEIGHT - 100:
                 out_rect = pygame.Rect(SCREEN_WIDTH//2, SCREEN_HEIGHT-40, 10, 10)
                 self.draw_context_menu(out_rect, "Sortir")

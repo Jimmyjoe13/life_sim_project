@@ -111,6 +111,46 @@ def make_bed():
     pygame.draw.rect(s, (230, 230, 230), (4, 4, 24, 10))
     save(s, "bed.png")
 
+def make_table():
+    s = create_surface(64, 48)
+    pygame.draw.rect(s, (100, 70, 20), (0, 0, 64, 48)) # Plateau marron
+    pygame.draw.rect(s, (80, 50, 10), (4, 4, 56, 40)) # Détail dessus
+    save(s, "table.png")
+
+def make_chair():
+    s = create_surface(32, 32)
+    pygame.draw.rect(s, (120, 90, 40), (4, 4, 24, 24)) # Assise
+    pygame.draw.rect(s, (100, 70, 20), (4, 0, 24, 8)) # Dossier haut
+    save(s, "chair.png")
+
+def make_kitchen_counter():
+    s = create_surface(64, 48)
+    pygame.draw.rect(s, (200, 200, 200), (0, 0, 64, 48)) # Bloc gris
+    pygame.draw.circle(s, (50, 50, 50), (16, 16), 10) # Evier/Feu 1
+    pygame.draw.circle(s, (50, 50, 50), (48, 16), 10) # Evier/Feu 2
+    save(s, "kitchen.png")
+
+def make_fridge():
+    s = create_surface(32, 64)
+    pygame.draw.rect(s, (240, 240, 255), (0, 0, 32, 64)) # Blanc froid
+    pygame.draw.line(s, (200, 200, 220), (0, 20), (32, 20), 2) # Séparation frigo/congel
+    pygame.draw.line(s, (150, 150, 180), (4, 25), (4, 40), 4) # Poignée
+    save(s, "fridge.png")
+
+def make_toilet():
+    s = create_surface(32, 32)
+    pygame.draw.ellipse(s, (255, 255, 255), (4, 8, 24, 24)) # Cuvette
+    pygame.draw.rect(s, (240, 240, 240), (8, 0, 16, 10)) # Réservoir
+    save(s, "toilet.png")
+
+def make_sofa():
+    s = create_surface(80, 40)
+    pygame.draw.rect(s, (50, 50, 150), (0, 10, 80, 30)) # Assise bleue
+    pygame.draw.rect(s, (70, 70, 180), (0, 0, 80, 15)) # Dossier
+    pygame.draw.rect(s, (40, 40, 120), (0, 10, 10, 30)) # Accoudoir G
+    pygame.draw.rect(s, (40, 40, 120), (70, 10, 10, 30)) # Accoudoir D
+    save(s, "sofa.png")
+
 if __name__ == "__main__":
     pygame.init()
     # Ecran virtuel pour permettre les opérations graphiques
@@ -124,6 +164,12 @@ if __name__ == "__main__":
     make_npc()
     make_house() # <--- NOUVEAU
     make_bed()   # <--- NOUVEAU
+    make_table()
+    make_chair()
+    make_kitchen_counter()
+    make_fridge()
+    make_toilet()
+    make_sofa()
     
     print("\n🎉 Assets Maison générés !")
     pygame.quit()
