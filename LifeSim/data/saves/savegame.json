@@ -1,0 +1,30 @@
+{
+    "player": {
+        "name": "Saïna",
+        "position": [
+            104.90000000000315,
+            227.0807999999988
+        ],
+        "stats": {
+            "health": 100.0,
+            "hunger": 82.12100000000662,
+            "energy": 92.84839999999417,
+            "happiness": 100.0,
+            "money": 1500
+        },
+        "inventory": [
+            {
+                "name": "Café Noir",
+                "hunger_value": 2.0,
+                "energy_value": 15.0,
+                "price": 25
+            },
+            {
+                "name": "Café Noir",
+                "hunger_value": 2.0,
+                "energy_value": 15.0,
+                "price": 25
+            }
+        ]
+    }
+}

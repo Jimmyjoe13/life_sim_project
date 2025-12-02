@@ -1,0 +1,72 @@
+# LifeSim/tools/make_assets.py
+import pygame
+import os
+
+# On se base sur l'emplacement de ce script pour trouver le dossier assets
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ASSETS_DIR = os.path.join(BASE_DIR, "assets", "images")
+
+# Création du dossier s'il n'existe pas
+os.makedirs(ASSETS_DIR, exist_ok=True)
+
+def create_surface(width, height):
+    return pygame.Surface((width, height), pygame.SRCALPHA)
+
+def save(surface, name):
+    path = os.path.join(ASSETS_DIR, name)
+    pygame.image.save(surface, path)
+    print(f"✅ Image générée : {path}")
+
+def make_player():
+    # Un petit bonhomme (32x48)
+    s = create_surface(32, 48)
+    # Corps (Bleu)
+    pygame.draw.rect(s, (50, 100, 200), (4, 20, 24, 20))
+    # Tête (Peau)
+    pygame.draw.rect(s, (255, 200, 180), (6, 4, 20, 16))
+    # Yeux
+    pygame.draw.rect(s, (0, 0, 0), (10, 10, 4, 4))
+    pygame.draw.rect(s, (0, 0, 0), (18, 10, 4, 4))
+    # Jambes
+    pygame.draw.rect(s, (30, 30, 100), (8, 40, 6, 8))
+    pygame.draw.rect(s, (30, 30, 100), (18, 40, 6, 8))
+    save(s, "player.png")
+
+def make_shop():
+    # Une boutique (64x64)
+    s = create_surface(64, 64)
+    # Murs
+    pygame.draw.rect(s, (200, 180, 140), (4, 20, 56, 44))
+    # Toit Rouge
+    pygame.draw.polygon(s, (200, 50, 50), [(0, 20), (32, 0), (64, 20)])
+    # Porte
+    pygame.draw.rect(s, (100, 50, 0), (24, 40, 16, 24))
+    # Enseigne "SHOP" (Barre noire)
+    pygame.draw.rect(s, (50, 50, 50), (12, 24, 40, 10))
+    save(s, "shop.png")
+
+def make_items():
+    # Pomme
+    s = create_surface(32, 32)
+    pygame.draw.circle(s, (220, 20, 20), (16, 18), 10)
+    pygame.draw.line(s, (0, 150, 0), (16, 10), (16, 4), 2)
+    save(s, "apple.png")
+
+    # Café
+    s = create_surface(32, 32)
+    pygame.draw.rect(s, (255, 255, 255), (8, 10, 16, 18))
+    pygame.draw.rect(s, (100, 50, 0), (10, 12, 12, 14))
+    save(s, "coffee.png")
+
+if __name__ == "__main__":
+    pygame.init()
+    # Ecran virtuel pour permettre les opérations graphiques
+    pygame.display.set_mode((1, 1), pygame.NOFRAME)
+    
+    print("🎨 Génération des assets en cours...")
+    make_player()
+    make_shop()
+    make_items()
+    
+    print("\n🎉 Terminé ! Lance le jeu maintenant.")
+    pygame.quit()
