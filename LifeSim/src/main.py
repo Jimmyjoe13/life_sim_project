@@ -13,6 +13,7 @@ from src.entities.player import Player
 from src.entities.item import create_apple
 from src.entities.shop import Shop
 from src.core.save_manager import SaveManager # <--- Nouveau
+from src.entities.workplace import Workplace
 
 class Game:
     def __init__(self):
@@ -41,6 +42,10 @@ class Game:
         self.last_message = ""
         self.message_timer = 0
         self.shop.set_sprite(self.assets.get_image("shop"))
+
+        # 4. SETUP WORKPLACE (A gauche, en bas)
+        self.workplace = Workplace(100, 400)
+        self.workplace.set_sprite(self.assets.get_image("office"))
         
         # --- SYSTEME DE SAUVEGARDE ---
         self.save_manager = SaveManager()
@@ -50,6 +55,7 @@ class Game:
     def handle_events(self):
         # On utilise self.player.rect pour la collision
         in_shop_zone = self.shop.check_collision(self.player.rect)
+        in_work_zone = self.workplace.check_collision(self.player.rect)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -67,6 +73,12 @@ class Game:
                         self.message_timer = 120
                     elif event.key == pygame.K_2:
                         self.last_message = self.shop.try_buy_item(self.player, 1)
+                        self.message_timer = 120
+
+                        # --- TRAVAIL ---
+                if in_work_zone:
+                    if event.key == pygame.K_SPACE:
+                        self.last_message = self.workplace.work(self.player)
                         self.message_timer = 120
 
                 # --- SAUVEGARDE / CHARGEMENT ---
@@ -104,7 +116,11 @@ class Game:
 
     def draw(self):
         # Fond vert (Herbe) au lieu de noir
-        self.screen.fill((50, 160, 80)) 
+        self.screen.fill((50, 160, 80))
+
+        # Dessiner le Bureau
+        if self.workplace.sprite:
+            self.screen.blit(self.workplace.sprite, self.workplace.rect)
         
         # 1. Dessiner le Shop (Image)
         if self.shop.sprite:
@@ -165,6 +181,14 @@ class Game:
             shop_text = self.font.render("[1] Pomme(10)  [2] Café(25)", True, (255, 255, 255))
             pygame.draw.rect(self.screen, (0,0,0), (self.shop.rect.x, self.shop.rect.y - 30, 200, 25))
             self.screen.blit(shop_text, (self.shop.rect.x + 5, self.shop.rect.y - 30))
+
+        # Affichage Menu Travail
+        if self.workplace.check_collision(self.player.rect):
+            work_text = self.font.render("[ESPACE] Travailler (+50€ / -20 Énergie)", True, (200, 200, 255))
+            # Fond noir pour lisibilité
+            bg_rect = pygame.Rect(self.workplace.rect.x - 20, self.workplace.rect.y - 30, 300, 25)
+            pygame.draw.rect(self.screen, (0,0,0), bg_rect)
+            self.screen.blit(work_text, (self.workplace.rect.x, self.workplace.rect.y - 30))
 
     def run(self):
         while self.is_running:

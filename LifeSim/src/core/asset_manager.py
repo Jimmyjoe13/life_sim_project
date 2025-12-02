@@ -23,6 +23,7 @@ class AssetManager:
             "player": "player.png",
             "shop": "shop.png",
             "apple": "apple.png",
+            "office": "office.png",
             "coffee": "coffee.png"
         }
 

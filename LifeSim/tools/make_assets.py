@@ -58,6 +58,22 @@ def make_items():
     pygame.draw.rect(s, (100, 50, 0), (10, 12, 12, 14))
     save(s, "coffee.png")
 
+def make_office():
+    # Un immeuble de bureaux (64x80)
+    s = create_surface(64, 80)
+    # Structure Béton
+    pygame.draw.rect(s, (150, 150, 160), (4, 10, 56, 70))
+    # Vitres (Bleu ciel)
+    for y in range(20, 70, 15):
+        pygame.draw.rect(s, (200, 230, 255), (10, y, 10, 10))
+        pygame.draw.rect(s, (200, 230, 255), (28, y, 10, 10))
+        pygame.draw.rect(s, (200, 230, 255), (46, y, 10, 10))
+    # Porte
+    pygame.draw.rect(s, (80, 80, 90), (24, 65, 16, 15))
+    # Enseigne "WORK"
+    pygame.draw.rect(s, (0, 0, 100), (12, 0, 40, 10))
+    save(s, "office.png")
+
 if __name__ == "__main__":
     pygame.init()
     # Ecran virtuel pour permettre les opérations graphiques
@@ -67,6 +83,7 @@ if __name__ == "__main__":
     make_player()
     make_shop()
     make_items()
+    make_office()
     
-    print("\n🎉 Terminé ! Lance le jeu maintenant.")
+    print("\n🎉 Assets mis à jour !")
     pygame.quit()
