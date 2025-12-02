@@ -2,22 +2,22 @@
     "player": {
         "name": "Saïna",
         "position": [
-            419.17280000000255,
-            274.95079999999865
+            464.75599999999554,
+            265.9160000000019
         ],
         "stats": {
             "health": 100.0,
-            "hunger": 79.2160000000092,
-            "energy": 97.93999999999825,
+            "hunger": 19.987500000001358,
+            "energy": 11.99499999999926,
             "happiness": 100.0,
-            "money": 1220
+            "money": 5
         },
         "inventory": [
             {
-                "name": "Pomme Rouge",
-                "hunger_value": 20.0,
-                "energy_value": 5.0,
-                "price": 10
+                "name": "Café Noir",
+                "hunger_value": 2.0,
+                "energy_value": 15.0,
+                "price": 25
             },
             {
                 "name": "Café Noir",
@@ -26,10 +26,10 @@
                 "price": 25
             },
             {
-                "name": "Pomme Rouge",
-                "hunger_value": 20.0,
-                "energy_value": 5.0,
-                "price": 10
+                "name": "Café Noir",
+                "hunger_value": 2.0,
+                "energy_value": 15.0,
+                "price": 25
             },
             {
                 "name": "Café Noir",
@@ -38,10 +38,10 @@
                 "price": 25
             },
             {
-                "name": "Pomme Rouge",
-                "hunger_value": 20.0,
-                "energy_value": 5.0,
-                "price": 10
+                "name": "Café Noir",
+                "hunger_value": 2.0,
+                "energy_value": 15.0,
+                "price": 25
             },
             {
                 "name": "Café Noir",
@@ -50,58 +50,10 @@
                 "price": 25
             },
             {
-                "name": "Pomme Rouge",
-                "hunger_value": 20.0,
-                "energy_value": 5.0,
-                "price": 10
-            },
-            {
                 "name": "Café Noir",
                 "hunger_value": 2.0,
                 "energy_value": 15.0,
                 "price": 25
-            },
-            {
-                "name": "Pomme Rouge",
-                "hunger_value": 20.0,
-                "energy_value": 5.0,
-                "price": 10
-            },
-            {
-                "name": "Café Noir",
-                "hunger_value": 2.0,
-                "energy_value": 15.0,
-                "price": 25
-            },
-            {
-                "name": "Pomme Rouge",
-                "hunger_value": 20.0,
-                "energy_value": 5.0,
-                "price": 10
-            },
-            {
-                "name": "Café Noir",
-                "hunger_value": 2.0,
-                "energy_value": 15.0,
-                "price": 25
-            },
-            {
-                "name": "Pomme Rouge",
-                "hunger_value": 20.0,
-                "energy_value": 5.0,
-                "price": 10
-            },
-            {
-                "name": "Café Noir",
-                "hunger_value": 2.0,
-                "energy_value": 15.0,
-                "price": 25
-            },
-            {
-                "name": "Pomme Rouge",
-                "hunger_value": 20.0,
-                "energy_value": 5.0,
-                "price": 10
             },
             {
                 "name": "Café Noir",
