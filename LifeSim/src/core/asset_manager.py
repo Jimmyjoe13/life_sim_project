@@ -33,7 +33,11 @@ class AssetManager:
             "kitchen": "kitchen.png",
             "fridge": "fridge.png",
             "toilet": "toilet.png",
-            "sofa": "sofa.png"
+            "sofa": "sofa.png",
+            # --- AJOUTS TUILES ---
+            "grass": "grass.png",
+            "path": "path.png",
+            "water": "water.png"
         }
 
         print(f"📂 Chargement des images depuis : {img_dir}")

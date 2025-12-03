@@ -17,6 +17,8 @@ from src.core.save_manager import SaveManager
 from src.entities.workplace import Workplace
 from src.entities.npc import NPC
 from src.entities.house import House
+from src.core.time_manager import TimeManager
+from src.core.world_map import WorldMap
 
 class Game:
     def __init__(self):
@@ -29,6 +31,9 @@ class Game:
         # 1. ASSETS
         self.assets = AssetManager.get()
         self.assets.load_images()
+
+        # MONDE (CARTE)
+        self.world_map = WorldMap()
 
         # 2. JOUEUR
         self.player = Player(name="Saïna", money=STARTING_MONEY)
@@ -76,6 +81,13 @@ class Game:
         self.move_intent = (0, 0)
         self.last_message = ""
         self.message_timer = 0
+
+        # 7. GESTION DU TEMPS
+        self.time_manager = TimeManager()  # <--- AJOUT 2
+        
+        # Surface pour le filtre de nuit (recouvre tout l'écran)
+        self.night_filter = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.night_filter.set_alpha(0) # Transparent par défaut
 
     def switch_location(self, new_location):
         """Gère la transition entre l'extérieur et l'intérieur"""
@@ -197,6 +209,8 @@ class Game:
     def update(self, dt):
         self.player.move(*self.move_intent, dt)
         self.player.update(dt, DECAY_HUNGER, DECAY_ENERGY)
+        # Mise à jour du temps
+        self.time_manager.update(dt, TIME_SPEED)
         
         if self.message_timer > 0:
             self.message_timer -= 1
@@ -226,8 +240,10 @@ class Game:
     def draw(self):
         # 1. RENDU DU DÉCOR (Selon le lieu)
         if self.location == "world":
-            self.screen.fill((50, 160, 80)) # Vert Herbe
-            
+            # self.screen.fill((50, 160, 80)) # Vert Herbe
+            # AFFICHE LA CARTE EN PREMIER (C'est le sol)
+            self.world_map.draw(self.screen, self.assets)
+
             if self.house.sprite: self.screen.blit(self.house.sprite, self.house.rect)
             if self.workplace.sprite: self.screen.blit(self.workplace.sprite, self.workplace.rect)
             if self.shop.sprite: self.screen.blit(self.shop.sprite, self.shop.rect)
@@ -250,6 +266,17 @@ class Game:
             shadow_pos = (self.player.rect.centerx - 10, self.player.rect.bottom - 5)
             pygame.draw.ellipse(self.screen, (30, 80, 30), (shadow_pos[0], shadow_pos[1], 20, 8))
             self.screen.blit(self.player.sprite, self.player.rect)
+
+         # --- AJOUT : FILTRE NUIT ---
+        # On demande l'intensité de la nuit
+        alpha = self.time_manager.get_night_intensity()
+        if alpha > 0:
+            # On configure la transparence
+            self.night_filter.set_alpha(alpha)
+            # On remplit avec la couleur bleue nuit définie dans settings
+            self.night_filter.fill(NIGHT_COLOR)
+            # On colle par-dessus tout le reste
+            self.screen.blit(self.night_filter, (0, 0))
         
         # 3. UI
         self.draw_ui()
@@ -264,7 +291,11 @@ class Game:
         panel.fill((0, 0, 0))
         self.screen.blit(panel, (5, 5))
 
+        time_str = self.time_manager.get_time_string()
+        day_str = f"Jour {self.time_manager.day}"
+
         infos = [
+            f"📅 {day_str} - 🕒 {time_str}",
             f"Nom: {self.player.name}",
             f"Vie: {int(stats.health)}%  Nrj: {int(stats.energy)}%",
             f"Faim: {int(stats.hunger)}%  Argent: {stats.money} E",
