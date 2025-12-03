@@ -19,6 +19,7 @@ from src.entities.npc import NPC
 from src.entities.house import House
 from src.core.time_manager import TimeManager
 from src.core.world_map import WorldMap
+from src.entities.quest import Quest
 
 class Game:
     def __init__(self):
@@ -56,12 +57,19 @@ class Game:
 
         # 5. PNJS
         self.npcs = []
+        # Création de la quête de Bob
+        quest_bob = Quest(
+            title="Livraison Fruitée",
+            description="Apporte une Pomme Rouge à Bob",
+            target_item="Pomme Rouge",
+            reward_amount=50
+        )
+
         bob = NPC("Bob", 300, 200, [
-            "Belle journée pour coder !",
-            "J'ai entendu dire que le café au Shop est excellent.",
-            "Ta nouvelle maison a l'air super confortable !",
-            "Il paraît qu'on peut s'asseoir sur le canapé maintenant ?"
-        ])
+            "Quelle belle journée !",
+            "J'ai vraiment très faim...",
+        ], quest=quest_bob) # <--- ON PASSE LA QUÊTE ICI
+
         bob.set_sprite(self.assets.get_image("npc_villager"))
         self.npcs.append(bob)
 
@@ -157,7 +165,8 @@ class Game:
                         self.message_timer = 120
 
                     if nearby_npc and event.key == pygame.K_t:
-                        self.last_message = nearby_npc.talk()
+                    # MODIFICATION ICI : on passe self.player
+                        self.last_message = nearby_npc.talk(self.player)
                         self.message_timer = 180
                     
                     if can_enter_house and event.key == pygame.K_SPACE:
@@ -301,6 +310,18 @@ class Game:
             f"Faim: {int(stats.hunger)}%  Argent: {stats.money} E",
             "--- Inventaire ---"
         ]
+
+        # --- AJOUT : Affichage Quête Active ---
+        # On regarde si un PNJ a une quête active
+        active_quest_text = ""
+        for npc in self.npcs:
+            if npc.quest and npc.quest.is_active and not npc.quest.is_completed:
+                active_quest_text = f"QUÊTE: {npc.quest.description}"
+                break
+
+        if active_quest_text:
+            infos.append("----------------")
+            infos.append(active_quest_text)
         
         if not self.player.inventory: infos.append("(Vide)")
         else:
