@@ -1,162 +1,197 @@
-## 🏡 LifeSim Project (Python MVP)
+# 🏡 LifeSim Project
 
-LifeSim est un moteur de simulation de vie en 2D (Top-Down) développé en Python. Ce projet démontre une architecture logicielle robuste (MVC, OOP) capable de gérer des systèmes complexes comme l'économie, la gestion des besoins, les interactions PNJ et la transition entre différents environnements (Intérieur/Extérieur).
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-## ✨ Fonctionnalités Actuelles
+> Moteur de simulation de vie 2D top-down développé en Python avec Pygame, démontrant une architecture MVC robuste et des systèmes de jeu complexes.
 
-### 🧠 Système de Simulation
+## 📋 Table des matières
 
-Cycle de Vie : Gestion en temps réel de la Faim et de l'Énergie.
+- [Aperçu](#-aperçu)
+- [Fonctionnalités](#-fonctionnalités)
+- [Installation](#-installation)
+- [Démarrage rapide](#-démarrage-rapide)
+- [Contrôles](#-contrôles)
+- [Architecture](#-architecture)
+- [Technologies](#-technologies)
+- [Roadmap](#-roadmap)
+- [Contribution](#-contribution)
+- [License](#-license)
 
-Économie : Gagner de l'argent en travaillant (échange Énergie -> Argent) et le dépenser au magasin.
+## 🎮 Aperçu
 
-Inventaire : Système de stockage d'objets consommables (Pommes, Café).
+LifeSim est un moteur de simulation qui reproduit les mécaniques d'un jeu de vie quotidienne. Le joueur évolue dans un monde 2D où il doit gérer ses besoins vitaux (faim, énergie), gagner de l'argent en travaillant, effectuer des achats et interagir avec des PNJ dans différents environnements.
 
-Persistance : Sauvegarde et Chargement complet de l'état du joueur via JSON (F5/F9).
+### Démo
 
-### 🌍 Monde & Environnement
+![Gameplay Screenshot](docs/screenshot.png) *(À ajouter)*
 
-Système Multi-Map : Transition fluide entre le Monde Extérieur et l'Intérieur de la maison.
+## ✨ Fonctionnalités
 
-Interactions Contextuelles : Menus dynamiques selon l'objet touché (Lit, Frigo, PNJ, Bureau).
+### 🧠 Systèmes de simulation
 
-Maison Meublée : Intérieur détaillé avec zones distinctes (Cuisine, Salon, Chambre, SDB) et meubles interactifs.
+- **Gestion des besoins** : Cycle de vie en temps réel avec faim et énergie
+- **Économie dynamique** : Système travail → argent → achats
+- **Inventaire** : Gestion d'objets consommables (pommes, café, etc.)
+- **Persistance** : Sauvegarde/chargement complet en JSON (F5/F9)
 
-### 🤖 Entités Intelligentes
+### 🌍 Monde interactif
 
-PNJs Vivants : Personnages non-joueurs (Bob, Alice) avec système de dialogue style RPG.
+- **Multi-environnements** : Transition fluide entre extérieur et intérieur
+- **Interactions contextuelles** : Menus dynamiques selon l'objet (lit, frigo, bureau, PNJ)
+- **Maison détaillée** : Zones distinctes (cuisine, salon, chambre, salle de bain)
 
-Feedback Visuel : Bulles de dialogue, Menus contextuels, Jauges de statut.
+### 🤖 Intelligence artificielle
 
-## 🛠️ Installation & Démarrage
+- **PNJ autonomes** : Personnages avec comportements et dialogues (Bob, Alice)
+- **Système de dialogue** : Interface style RPG
+- **Feedback visuel** : Bulles de dialogue, menus, jauges de statut
 
-Ce projet utilise un générateur d'assets procédural pour ne pas dépendre de fichiers externes lourds.
+## 🚀 Installation
 
-1. Pré-requis
+### Prérequis
 
-Avoir Python 3.10 ou supérieur installé.
+- Python 3.10 ou supérieur
+- pip (gestionnaire de paquets Python)
 
-2. Installation des dépendances
+### Étapes d'installation
 
-pip install -r requirements.txt
+1. **Cloner le dépôt**
 
+```bash
+git clone https://github.com/Jimmyjoe13/life_sim_project.git
+cd life_sim_project
+```
 
-(Le fichier requirements contient principalement pygame-ce et pandas)
+2. **Installer les dépendances**
 
-3. Génération des Graphismes (Première fois uniquement)
+```bash
+pip install -r LifeSim/requirements.txt
+```
 
-Avant de lancer le jeu, il faut générer les sprites (Pixel Art) :
+3. **Générer les assets** (première fois uniquement)
 
+```bash
 python LifeSim/tools/make_assets.py
+```
 
+Cette commande génère les sprites pixel art dans `assets/images/`.
 
-Cela va créer le dossier assets/images avec tous les PNG nécessaires.
+## ⚡ Démarrage rapide
 
-4. Lancer le Jeu
-
+```bash
 python LifeSim/src/main.py
+```
 
+Le jeu se lance en fenêtre plein écran. Utilisez `Échap` pour quitter.
 
 ## 🎮 Contrôles
 
-Action
+| Action | Touche(s) | Description |
+|--------|-----------|-------------|
+| **Déplacement** | `↑ ↓ ← →` ou `ZQSD` | Déplacer le personnage |
+| **Interaction** | `Espace` | Entrer, dormir, travailler, etc. |
+| **Manger** | `E` | Consommer le premier objet de l'inventaire |
+| **Parler** | `T` | Discuter avec un PNJ proche |
+| **Acheter** | `1` / `2` | Acheter des objets (zone shop) |
+| **Sauvegarder** | `F5` | Sauvegarde rapide |
+| **Charger** | `F9` | Chargement rapide |
+| **Quitter** | `Échap` | Quitter le jeu |
 
-Touche(s)
+## 🏗️ Architecture
 
-Description
+Le projet suit une architecture **MVC modulaire** pour faciliter l'évolutivité :
 
-Mouvement
-
-Flèches ou ZQSD
-
-Déplacer le personnage
-
-Interaction
-
-ESPACE
-
-Entrer, Dormir, Travailler, etc.
-
-Manger
-
-E
-
-Consomme le 1er objet de l'inventaire
-
-Parler
-
-T
-
-Discuter avec un PNJ proche
-
-Acheter
-
-1 / 2
-
-Acheter des objets (dans la zone Shop)
-
-Sauvegarder
-
-F5
-
-Sauvegarde rapide (JSON)
-
-Charger
-
-F9
-
-Chargement rapide
-
-Quitter
-
-Echap / Fermer
-
-Quitter le jeu
-
-## 🏗️ Architecture du Projet
-
-Le projet suit une architecture modulaire stricte pour faciliter l'évolution.
 ```
 LifeSim/
-├── assets/                 # Généré automatiquement (Images)
+├── assets/              # Assets générés (sprites PNG)
 ├── data/
-│   └── saves/              # Fichiers de sauvegarde (.json)
+│   └── saves/           # Fichiers de sauvegarde JSON
 ├── tools/
-│   └── make_assets.py      # Script de génération procédurale d'images
+│   └── make_assets.py   # Générateur procédural d'images
 ├── src/
-│   ├── core/
-│   │   ├── asset_manager.py # Singleton de gestion des sprites
-│   │   ├── save_manager.py  # Gestion lecture/écriture JSON
-│   │   └── settings.py      # Constantes globales (Écran, Couleurs)
-│   ├── entities/
-│   │   ├── player.py        # Logique joueur (Stats, Mouvement)
-│   │   ├── house.py         # Gestion Intérieur/Extérieur & Meubles
-│   │   ├── npc.py           # IA et Dialogues
-│   │   ├── shop.py          # Logique d'achat
-│   │   ├── workplace.py     # Logique de travail
-│   │   └── item.py          # DataClass des objets
-│   └── main.py              # Point d'entrée & Boucle de jeu (Game Loop)
+│   ├── core/            # Modules centraux
+│   │   ├── asset_manager.py
+│   │   ├── save_manager.py
+│   │   └── settings.py
+│   ├── entities/        # Entités du jeu
+│   │   ├── player.py
+│   │   ├── house.py
+│   │   ├── npc.py
+│   │   ├── shop.py
+│   │   ├── workplace.py
+│   │   └── item.py
+│   ├── systems/         # Systèmes de jeu
+│   ├── ui/              # Interface utilisateur
+│   └── main.py          # Point d'entrée
+├── tests/               # Tests unitaires
 └── requirements.txt
 ```
 
-## 🚀 Roadmap (Prochaines Étapes)
+### Principes architecturaux
 
-[x] Déplacement & Collisions
+- **Séparation des préoccupations** : MVC strict
+- **Singleton Pattern** : Asset Manager pour optimiser la mémoire
+- **Data Classes** : Structures d'objets typées
+- **Event-driven** : Boucle de jeu réactive
 
-[x] Système de Faim/Énergie
+## 🛠️ Technologies
 
-[x] Magasin & Travail
+- **[Pygame CE](https://pyga.me/)** : Moteur de jeu 2D
+- **[Python 3.10+](https://www.python.org/)** : Langage de programmation
+- **[Pandas](https://pandas.pydata.org/)** : Gestion de données (optionnel)
+- **JSON** : Persistance des sauvegardes
 
-[x] Sauvegarde JSON
+## 🗺️ Roadmap
 
-[x] Intérieur de Maison
+### ✅ Implémenté
 
-[ ] Quêtes PNJ : Système de missions données par Bob ou Alice.
+- [x] Système de déplacement et collisions
+- [x] Gestion faim/énergie
+- [x] Économie (magasin + travail)
+- [x] Sauvegarde/chargement JSON
+- [x] Multi-environnements (intérieur/extérieur)
+- [x] PNJ avec dialogues
 
-[ ] Cycle Jour/Nuit : Assombrissement progressif et fatigue accrue la nuit.
+### 🔜 À venir
 
-[ ] Système de Tuiles : Remplacer le fond vert par une vraie carte (Herbe, Chemins, Eau).
+- [ ] **Système de quêtes** : Missions données par les PNJ
+- [ ] **Cycle jour/nuit** : Assombrissement progressif et fatigue nocturne
+- [ ] **Système de tuiles** : Vraie carte avec herbe, chemins, eau
+- [ ] **Relations sociales** : Jauge d'amitié avec les PNJ
+- [ ] **Compétences** : Arbre de progression du joueur
+- [ ] **Événements aléatoires** : Surprises et défis dynamiques
+
+## 🤝 Contribution
+
+Les contributions sont les bienvenues ! Pour contribuer :
+
+1. Fork le projet
+2. Créez une branche (`git checkout -b feature/AmazingFeature`)
+3. Committez vos changements (`git commit -m 'Add AmazingFeature'`)
+4. Pushez vers la branche (`git push origin feature/AmazingFeature`)
+5. Ouvrez une Pull Request
+
+### Standards de code
+
+- Suivre [PEP 8](https://pep8.org/)
+- Documenter les fonctions avec docstrings
+- Ajouter des tests pour les nouvelles fonctionnalités
+
+## 📄 License
+
+Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
+
+## 👤 Auteur
+
+**Jimmy** - [Jimmyjoe13](https://github.com/Jimmyjoe13)
+
+## 🙏 Remerciements
+
+- Pygame Community pour la documentation
+- Inspiré par Stardew Valley et The Sims
 
 ---
 
-Développé avec ❤️ et Python.
+**Développé avec ❤️ et Python**
