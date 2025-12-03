@@ -20,6 +20,7 @@ from src.entities.house import House
 from src.core.time_manager import TimeManager
 from src.core.world_map import WorldMap
 from src.entities.quest import Quest
+from src.systems.relationship_system import RelationshipSystem
 
 class Game:
     def __init__(self):
@@ -40,24 +41,29 @@ class Game:
         self.player = Player(name="Saïna", money=STARTING_MONEY)
         self.player.add_item(create_apple())
         self.player.set_sprite(self.assets.get_image("player"))
+        
+        # 3. SYSTÈMES (ON LES INITIALISE ICI MAINTENANT !)
+        # C'est important qu'ils soient là AVANT les PNJ
+        self.save_manager = SaveManager()
+        self.relationship_system = RelationshipSystem() # <--- IL EST ICI !
+        self.time_manager = TimeManager()
 
-        # 3. MONDE EXTÉRIEUR
+        # 4. MONDE EXTÉRIEUR
         self.shop = Shop(600, 100)
         self.shop.set_sprite(self.assets.get_image("shop"))
         
         self.workplace = Workplace(100, 400)
         self.workplace.set_sprite(self.assets.get_image("office"))
         
-        # 4. MAISON (CONFIGURATION COMPLÈTE)
+        # MAISON
         self.house = House(300, 50)
-        # On définit l'image extérieure
         self.house.set_outdoor_sprite(self.assets.get_image("house"))
-        # On configure l'intérieur (Meubles, zones)
         self.house.setup_interior(self.assets)
 
-        # 5. PNJS
+        # 5. PNJS (MAINTENANT ÇA VA MARCHER)
         self.npcs = []
-        # Création de la quête de Bob
+        
+        # Quête de Bob
         quest_bob = Quest(
             title="Livraison Fruitée",
             description="Apporte une Pomme Rouge à Bob",
@@ -65,10 +71,11 @@ class Game:
             reward_amount=50
         )
 
+        # Bob peut maintenant recevoir self.relationship_system car il existe déjà !
         bob = NPC("Bob", 300, 200, [
             "Quelle belle journée !",
             "J'ai vraiment très faim...",
-        ], quest=quest_bob) # <--- ON PASSE LA QUÊTE ICI
+        ], quest=quest_bob, relationship_manager=self.relationship_system)
 
         bob.set_sprite(self.assets.get_image("npc_villager"))
         self.npcs.append(bob)
@@ -77,25 +84,21 @@ class Game:
             "Fais attention à ton énergie.",
             "J'adore me promener sur ce fond vert.",
             "Si tu es fatigué, rentre chez toi dormir."
-        ])
+        ], relationship_manager=self.relationship_system)
+        
         alice.set_sprite(self.assets.get_image("npc_villager"))
         self.npcs.append(alice)
 
-        # 6. SYSTÈME ET ETAT
-        self.save_manager = SaveManager()
-        self.location = "world"  # "world" ou "house"
-        
+        # 6. ETAT DU JEU
+        self.location = "world"
         self.is_running = True
         self.move_intent = (0, 0)
         self.last_message = ""
         self.message_timer = 0
-
-        # 7. GESTION DU TEMPS
-        self.time_manager = TimeManager()  # <--- AJOUT 2
         
-        # Surface pour le filtre de nuit (recouvre tout l'écran)
+        # (Le time_manager est déjà géré au point 3, tu peux nettoyer si tu as des doublons)
         self.night_filter = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        self.night_filter.set_alpha(0) # Transparent par défaut
+        self.night_filter.set_alpha(0)
 
     def switch_location(self, new_location):
         """Gère la transition entre l'extérieur et l'intérieur"""
@@ -165,8 +168,19 @@ class Game:
                         self.message_timer = 120
 
                     if nearby_npc and event.key == pygame.K_t:
-                    # MODIFICATION ICI : on passe self.player
-                        self.last_message = nearby_npc.talk(self.player)
+                        # 1. On récupère la réponse du PNJ
+                        response = nearby_npc.talk(self.player)
+                        
+                        # 2. On augmente l'amitié (+2 points par discussion)
+                        # On ne gagne de l'amitié que si ce n'est pas une quête active bloquante
+                        # (Optionnel, ici on simplifie : parler = aimer)
+                        self.relationship_system.modify_friendship(nearby_npc.name, 2)
+                        
+                        # 3. On récupère le nouveau statut pour l'afficher
+                        new_score = self.relationship_system.get_friendship(nearby_npc.name)
+                        status = self.relationship_system.get_relationship_status(nearby_npc.name)
+                        
+                        self.last_message = f"{response} (Amitié: {new_score} - {status})"
                         self.message_timer = 180
                     
                     if can_enter_house and event.key == pygame.K_SPACE:
