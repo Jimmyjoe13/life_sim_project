@@ -28,18 +28,24 @@ TILE_VARIANTS = {
 }
 
 class WorldMap:
-    def __init__(self, seed: int = 42):
+    def __init__(self, seed: int = 42, world_width: int = None, world_height: int = None):
         """
         Initialise la carte du monde.
         
         Args:
             seed: Graine pour la génération aléatoire des variantes
+            world_width: Largeur du monde en pixels (défaut: 2x écran)
+            world_height: Hauteur du monde en pixels (défaut: 2x écran)
         """
         random.seed(seed)
         
+        # Taille du monde (par défaut 2x l'écran pour le scrolling)
+        self.world_width = world_width or SCREEN_WIDTH * 2
+        self.world_height = world_height or SCREEN_HEIGHT * 2
+        
         # Taille de la carte en nombre de tuiles
-        self.cols = SCREEN_WIDTH // TILE_SIZE + 1
-        self.rows = SCREEN_HEIGHT // TILE_SIZE + 1
+        self.cols = self.world_width // TILE_SIZE + 1
+        self.rows = self.world_height // TILE_SIZE + 1
         
         # Grille principale (type de terrain)
         self.grid = [[TERRAIN_GRASS for _ in range(self.cols)] for _ in range(self.rows)]

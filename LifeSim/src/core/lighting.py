@@ -151,6 +151,8 @@ class LightingSystem:
         """
         Récupère ou génère un halo de lumière (pré-rendu pour performance).
         
+        RECALIBRÉ : Halos plus subtils et réalistes.
+        
         Args:
             radius: Rayon du halo
             color: Couleur de la lumière
@@ -173,15 +175,21 @@ class LightingSystem:
                     dist = math.sqrt(dx * dx + dy * dy)
                     
                     if dist < radius:
-                        # Falloff quadratique pour un rendu naturel
-                        # Plus doux au centre, s'atténue vers les bords
+                        # Falloff CUBIQUE pour un dégradé très doux
+                        # Plus naturel que quadratique
                         t = dist / radius
-                        falloff = 1.0 - (t * t)  # Quadratique
+                        falloff = (1.0 - t) ** 3  # Cubique - beaucoup plus doux
                         
-                        # Appliquer la couleur avec falloff
-                        alpha = int(255 * falloff * 0.8)  # 0.8 pour pas surexposer
+                        # Alpha très réduit pour éviter la saturation
+                        # Max alpha = 80 au lieu de 200+
+                        alpha = int(80 * falloff)
                         
-                        halo.set_at((x, y), (*color, alpha))
+                        # Réduire aussi l'intensité de la couleur
+                        r = int(color[0] * 0.7)
+                        g = int(color[1] * 0.6)
+                        b = int(color[2] * 0.5)
+                        
+                        halo.set_at((x, y), (r, g, b, alpha))
             
             self._light_cache[cache_key] = halo
         
@@ -271,32 +279,31 @@ class LightingSystem:
     
     def render(self, screen: pygame.Surface, camera_offset: Tuple[int, int] = (0, 0)):
         """
-        Effectue le rendu de l'éclairage sur l'écran (VERSION OPTIMISÉE).
+        Effectue le rendu de l'éclairage sur l'écran.
         
-        Cette méthode doit être appelée APRÈS le rendu du monde et des sprites,
-        mais AVANT le rendu de l'UI.
-        
-        Technique:
-        1. On remplit la surface d'ambiance avec la couleur jour/nuit
-        2. On dessine des cercles blancs aux positions des lumières (pour "percer" l'obscurité)
-        3. On applique en mode MULTIPLY pour assombrir le tout sauf les zones éclairées
-        4. On ajoute les halos colorés en mode ADDITIVE pour l'effet lumineux
+        NOUVELLE APPROCHE (style Stardew Valley) :
+        - Pas de halos colorés additifs
+        - On crée une couche sombre et on "perce" des trous dedans
+        - Les lumières révèlent simplement le monde en-dessous
         
         Args:
             screen: Surface de destination
-            camera_offset: Décalage de la caméra (pour les lumières du monde)
+            camera_offset: Décalage de la caméra
         """
-        # === ÉTAPE 1: Préparer la surface d'ambiance ===
-        # Calculer la couleur d'ambiance pour le multiply
+        # Si c'est le plein jour, pas besoin d'éclairage
+        if self.ambient_intensity >= 0.95:
+            return
+        
+        # === ÉTAPE 1: Créer la couche sombre ===
+        # Couleur d'ambiance (plus sombre = plus bleu nuit)
         ambient_r = int(self.ambient_color[0] * self.ambient_intensity)
         ambient_g = int(self.ambient_color[1] * self.ambient_intensity)
         ambient_b = int(self.ambient_color[2] * self.ambient_intensity)
         
         self.ambient_surface.fill((ambient_r, ambient_g, ambient_b))
         
-        # === ÉTAPE 2: "Percer" les zones éclairées (OPTIMISÉ) ===
-        # On dessine des cercles plus clairs là où il y a des lumières
-        # Utilise des cercles concentriques au lieu de pixel-par-pixel
+        # === ÉTAPE 2: "Percer" les zones éclairées ===
+        # On dessine des cercles plus clairs (vers blanc) pour révéler le monde
         
         for light in self.lights:
             if not light.active:
@@ -319,20 +326,28 @@ class LightingSystem:
             # Rayon effectif
             radius = int(light.radius * effective_intensity)
             
-            # Dessiner des cercles concentriques pour créer le falloff
-            # C'est beaucoup plus rapide que pixel-par-pixel !
-            num_circles = min(radius // 4, 20)  # Limiter pour performance
+            # Nombre de cercles pour le dégradé (plus = plus lisse)
+            num_circles = min(radius // 3, 25)
             
+            if num_circles < 3:
+                num_circles = 3
+            
+            # Dessiner des cercles du plus grand au plus petit
             for i in range(num_circles, 0, -1):
-                # Rayon de ce cercle
+                # Rayon de ce cercle (du plus grand au plus petit)
                 circle_radius = (radius * i) // num_circles
                 
-                # Falloff quadratique
-                t = i / num_circles
-                falloff = t * t  # Plus sombre vers l'extérieur
+                # Facteur de progression (0 au bord, 1 au centre)
+                t = 1.0 - (i / num_circles)
                 
-                # Couleur pour ce cercle (interpolation vers blanc au centre)
-                boost = (1 - falloff) * effective_intensity * 0.7
+                # Falloff cubique pour un dégradé doux
+                falloff = t ** 2.5
+                
+                # Calculer la couleur : interpoler de ambient vers blanc
+                # Plus on est proche du centre, plus c'est clair
+                boost = falloff * effective_intensity
+                
+                # La couleur tend vers le blanc (255, 255, 255) au centre
                 circle_r = min(255, int(ambient_r + (255 - ambient_r) * boost))
                 circle_g = min(255, int(ambient_g + (255 - ambient_g) * boost))
                 circle_b = min(255, int(ambient_b + (255 - ambient_b) * boost))
@@ -345,74 +360,21 @@ class LightingSystem:
                 )
         
         # === ÉTAPE 3: Appliquer l'ambiance avec BLEND_MULT ===
+        # Cela assombrit tout SAUF les zones où on a mis du blanc
         screen.blit(self.ambient_surface, (0, 0), special_flags=pygame.BLEND_MULT)
         
-        # === ÉTAPE 4: Ajouter les halos lumineux (additif) ===
-        # Seulement si l'ambiance est assez sombre
-        if self.ambient_intensity > 0.75:
-            return  # Pas besoin de halos en plein jour
-        
-        self.light_surface.fill((0, 0, 0, 0))  # Transparent
-        
-        for light in self.lights:
-            if not light.active:
-                continue
-            
-            # Position
-            lx = int(light.x - camera_offset[0])
-            ly = int(light.y - camera_offset[1])
-            
-            # Skip si hors écran
-            if lx < -light.radius or lx > self.width + light.radius:
-                continue
-            if ly < -light.radius or ly > self.height + light.radius:
-                continue
-            
-            # Intensité
-            effective_intensity = light.intensity + light._flicker_offset
-            effective_intensity = max(0.1, min(1.0, effective_intensity))
-            
-            # Récupérer le halo pré-rendu (depuis le cache)
-            halo = self._get_cached_halo(light.radius, light.color)
-            
-            # Dessiner le halo (centré sur la position)
-            halo_rect = halo.get_rect(center=(lx, ly))
-            
-            # Appliquer l'intensité en fonction de l'obscurité
-            darkness_factor = 1.0 - self.ambient_intensity
-            final_alpha = int(255 * effective_intensity * darkness_factor)
-            
-            scaled_halo = halo.copy()
-            scaled_halo.set_alpha(final_alpha)
-            self.light_surface.blit(scaled_halo, halo_rect)
-        
-        # Appliquer les halos en mode additif
-        screen.blit(self.light_surface, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+        # PAS D'ÉTAPE 4 : On ne rajoute PAS de halos colorés
+        # Le résultat est un éclairage subtil style Stardew Valley
     
     def render_player_light(self, screen: pygame.Surface, player_pos: Tuple[int, int],
-                            radius: int = 80, color: Tuple[int, int, int] = (255, 220, 180)):
+                            radius: int = 60, color: Tuple[int, int, int] = (255, 200, 150)):
         """
-        Ajoute un halo de lumière autour du joueur (torche, lanterne, etc.).
-        
-        Args:
-            screen: Surface de destination
-            player_pos: Position du joueur (centre)
-            radius: Rayon du halo
-            color: Couleur de la lumière
+        Désactivé pour éviter les halos colorés.
+        La lumière du joueur est maintenant gérée comme une source de lumière normale.
         """
-        # Seulement la nuit
-        if self.ambient_intensity > 0.6:
-            return
-        
-        # Intensité basée sur l'obscurité ambiante
-        intensity = 1.0 - self.ambient_intensity
-        
-        halo = self._get_cached_halo(radius, color)
-        halo_copy = halo.copy()
-        halo_copy.set_alpha(int(200 * intensity))
-        
-        halo_rect = halo_copy.get_rect(center=player_pos)
-        screen.blit(halo_copy, halo_rect, special_flags=pygame.BLEND_RGBA_ADD)
+        # DÉSACTIVÉ - Pas de halo additionnel autour du joueur
+        # Pour activer une lumière autour du joueur, ajouter une LightSource dynamique
+        pass
     
     def is_night(self) -> bool:
         """Retourne True si c'est la nuit (faible luminosité)."""
@@ -425,48 +387,52 @@ class LightingSystem:
 
 # =============================================================================
 # PRESETS DE LUMIÈRES POUR PLACEMENT FACILE
+# RAYONS AUGMENTÉS pour des zones éclairées plus grandes
 # =============================================================================
 
 def create_streetlamp(lighting: LightingSystem, x: float, y: float) -> LightSource:
-    """Crée un lampadaire avec lumière jaune-orange."""
+    """
+    Crée un lampadaire avec une grande zone de lumière.
+    """
     return lighting.add_light(
-        x, y, radius=120,
-        color=(255, 220, 150),
-        intensity=0.9,
+        x, y, radius=150,  # AUGMENTÉ : 70 → 150
+        color=(255, 200, 120),
+        intensity=0.85,  # AUGMENTÉ : 0.6 → 0.85
         flicker=True
     )
 
 
 def create_window_light(lighting: LightingSystem, x: float, y: float) -> LightSource:
-    """Crée une fenêtre éclairée avec lumière chaude."""
+    """
+    Crée une fenêtre éclairée avec lumière chaude.
+    """
     return lighting.add_light(
-        x, y, radius=60,
-        color=(255, 200, 120),
-        intensity=0.7,
+        x, y, radius=80,  # AUGMENTÉ : 40 → 80
+        color=(255, 180, 100),
+        intensity=0.7,  # AUGMENTÉ : 0.5 → 0.7
         light_type=LightType.WINDOW
     )
 
 
 def create_campfire(lighting: LightingSystem, x: float, y: float) -> LightSource:
     """Crée un feu de camp avec vacillement prononcé."""
-    return lighting.add_light(
-        x, y, radius=100,
-        color=(255, 150, 50),
-        intensity=0.85,
+    light = lighting.add_light(
+        x, y, radius=130,  # AUGMENTÉ : 80 → 130
+        color=(255, 140, 40),
+        intensity=0.85,  # AUGMENTÉ : 0.7 → 0.85
         flicker=True
     )
     # Augmenter le vacillement
-    light = lighting.lights[-1]
     light.flicker_speed = 0.15
-    light.flicker_amount = 0.35
+    light.flicker_amount = 0.25
     return light
 
 
 def create_torch(lighting: LightingSystem, x: float, y: float) -> LightSource:
     """Crée une torche murale."""
     return lighting.add_light(
-        x, y, radius=70,
-        color=(255, 180, 80),
-        intensity=0.75,
+        x, y, radius=50,  # Réduit de 70 à 50
+        color=(255, 160, 60),
+        intensity=0.55,  # Réduit de 0.75 à 0.55
         flicker=True
     )

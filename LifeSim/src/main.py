@@ -31,6 +31,7 @@ from src.ui.minimap import MiniMap
 from src.ui.house_interior import ModernHouseInterior
 from src.ui.shop_ui import ShopUI
 from src.core.lighting import LightingSystem, create_streetlamp, create_window_light
+from src.core.camera import Camera, YSortCameraGroup
 
 class Game:
     def __init__(self):
@@ -44,8 +45,10 @@ class Game:
         self.assets = AssetManager.get()
         self.assets.load_images()
 
-        # MONDE (CARTE)
-        self.world_map = WorldMap()
+        # MONDE (CARTE) - Dimensions pour scrolling (2x écran)
+        self.world_width = SCREEN_WIDTH * 2
+        self.world_height = SCREEN_HEIGHT * 2
+        self.world_map = WorldMap(seed=42, world_width=self.world_width, world_height=self.world_height)
 
         # 2. JOUEUR
         self.player = Player(name="Saïna", money=STARTING_MONEY)
@@ -78,17 +81,26 @@ class Game:
         self.minimap = MiniMap(SCREEN_WIDTH, SCREEN_HEIGHT)
         self.shop_ui = ShopUI(SCREEN_WIDTH, SCREEN_HEIGHT)
 
-        # 4. MONDE EXTÉRIEUR
-        self.shop = Shop(600, 100)
+        # 4. MONDE EXTÉRIEUR - Positions ajustées pour le monde agrandi
+        # Les bâtiments sont placés dans la zone centrale du monde
+        center_x = self.world_width // 2
+        center_y = self.world_height // 2
+        
+        # Shop à droite du centre
+        self.shop = Shop(center_x + 200, center_y - 200)
         self.shop.set_sprite(self.assets.get_image("shop"))
         
-        self.workplace = Workplace(100, 400)
+        # Bureau à gauche
+        self.workplace = Workplace(center_x - 300, center_y + 100)
         self.workplace.set_sprite(self.assets.get_image("office"))
         
-        # MAISON
-        self.house = House(300, 50)
+        # MAISON au centre-haut
+        self.house = House(center_x - 100, center_y - 250)
         self.house.set_outdoor_sprite(self.assets.get_image("house"))
         self.house.setup_interior(self.assets)
+        
+        # Placer le joueur au centre du monde (devant la maison)
+        self.player.position = [center_x, center_y]
         
         # INTÉRIEUR MODERNE DE LA MAISON
         self.house_interior = ModernHouseInterior(SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -125,35 +137,53 @@ class Game:
         # 7. SYSTÈME D'ÉCLAIRAGE DYNAMIQUE
         self.lighting = LightingSystem(SCREEN_WIDTH, SCREEN_HEIGHT)
         self._setup_world_lights()
+        
+        # 8. SYSTÈME DE CAMÉRA ET Y-SORT
+        self.camera = Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.camera.set_target(self.player)
+        self.camera.lerp_speed = 4.0  # Suivi fluide
+        
+        # Limites du monde (pour l'instant = taille de l'écran, sera agrandi plus tard)
+        # Note: Quand le monde sera plus grand, on mettra les vraies dimensions
+        self.world_width = SCREEN_WIDTH * 2  # Monde 2x plus grand
+        self.world_height = SCREEN_HEIGHT * 2
+        self.camera.set_bounds(self.world_width, self.world_height)
+        
+        # Centrer la caméra sur le joueur au démarrage
+        self.camera.center_on(self.player.rect.centerx, self.player.rect.centery)
+        
+        # Groupe Y-Sort pour les entités (joueur, PNJ, objets interactifs)
+        self.ysort_group = YSortCameraGroup(self.camera)
     
     def _setup_world_lights(self):
         """
         Configure les sources de lumière du monde extérieur.
         Ces lumières s'activent automatiquement la nuit.
+        Les positions sont relatives au centre du monde (comme les bâtiments).
         """
-        # Lampadaires le long du chemin principal
-        # Chemin vertical au centre (x = ~400)
-        create_streetlamp(self.lighting, 400, 100)
-        create_streetlamp(self.lighting, 400, 250)
-        create_streetlamp(self.lighting, 400, 400)
-        create_streetlamp(self.lighting, 400, 550)
+        center_x = self.world_width // 2
+        center_y = self.world_height // 2
+        
+        # Lampadaires le long du chemin principal (centre du monde)
+        create_streetlamp(self.lighting, center_x, center_y - 200)
+        create_streetlamp(self.lighting, center_x, center_y - 50)
+        create_streetlamp(self.lighting, center_x, center_y + 100)
+        create_streetlamp(self.lighting, center_x, center_y + 250)
         
         # Lampadaire près du shop
-        create_streetlamp(self.lighting, 550, 150)
+        create_streetlamp(self.lighting, center_x + 150, center_y - 150)
         
         # Fenêtres éclairées de la maison (s'allument la nuit)
-        house_x, house_y = 300, 50
-        # Fenêtre gauche de la maison
+        house_x, house_y = center_x - 100, center_y - 250
         create_window_light(self.lighting, house_x + 26, house_y + 59)
-        # Fenêtre droite de la maison
         create_window_light(self.lighting, house_x + 70, house_y + 59)
         
         # Fenêtres du shop
-        shop_x, shop_y = 600, 100
+        shop_x, shop_y = center_x + 200, center_y - 200
         create_window_light(self.lighting, shop_x + 29, shop_y + 58)
         
         # Lumière à l'entrée du bureau
-        workplace_x, workplace_y = 100, 400
+        workplace_x, workplace_y = center_x - 300, center_y + 100
         create_streetlamp(self.lighting, workplace_x + 40, workplace_y - 20)
 
     def switch_location(self, new_location):
@@ -347,6 +377,11 @@ class Game:
     def update(self, dt):
         self.player.move(*self.move_intent, dt)
         self.player.update(dt, DECAY_HUNGER, DECAY_ENERGY)
+        
+        # Mise à jour de la caméra (suivi fluide du joueur)
+        if self.location == "world":
+            self.camera.update(dt)
+        
         # Mise à jour du temps
         self.time_manager.update(dt, TIME_SPEED)
         
@@ -381,51 +416,177 @@ class Game:
     def draw_house_interior(self):
         """Dessine l'intérieur moderne de la maison."""
         self.house_interior.draw(self.screen)
+    
+    # =========================================================================
+    # MÉTHODES DE RENDU AVEC CAMÉRA
+    # =========================================================================
+    
+    def _draw_world_tiles(self):
+        """
+        Dessine les tuiles du monde avec l'offset caméra.
+        Optimisé pour ne dessiner que les tuiles visibles.
+        """
+        tile_size = 32
+        
+        # Calculer les tuiles visibles
+        start_col = max(0, int(self.camera.x // tile_size))
+        start_row = max(0, int(self.camera.y // tile_size))
+        end_col = min(self.world_map.cols, int((self.camera.x + self.camera.width) // tile_size) + 2)
+        end_row = min(self.world_map.rows, int((self.camera.y + self.camera.height) // tile_size) + 2)
+        
+        for r in range(start_row, end_row):
+            for c in range(start_col, end_col):
+                # Position monde
+                world_x = c * tile_size
+                world_y = r * tile_size
+                
+                # Position écran (avec offset caméra)
+                screen_pos = self.camera.apply((world_x, world_y))
+                
+                # Récupérer la tuile
+                terrain_type = self.world_map.grid[r][c]
+                variant = self.world_map.variant_grid[r][c]
+                image_key = self.world_map._get_tile_key(terrain_type, variant)
+                
+                img = self.assets.get_image(image_key)
+                if img is None:
+                    img = self.assets.get_image(self.world_map._get_tile_key(terrain_type, 0))
+                
+                if img:
+                    self.screen.blit(img, screen_pos)
+    
+    def _draw_building(self, building):
+        """Dessine un bâtiment avec l'offset caméra."""
+        if building.sprite:
+            screen_pos = self.camera.apply(building.rect)
+            
+            # Ombre sous le bâtiment
+            shadow_x = screen_pos[0] + building.rect.width // 2 - 30
+            shadow_y = screen_pos[1] + building.rect.height - 8
+            pygame.draw.ellipse(self.screen, (20, 40, 20, 100), 
+                              (shadow_x, shadow_y, 60, 12))
+            
+            self.screen.blit(building.sprite, screen_pos)
+    
+    def _draw_player(self):
+        """Dessine le joueur avec l'offset caméra."""
+        screen_pos = self.camera.apply(self.player.rect)
+        
+        # Ombre
+        shadow_x = screen_pos[0] + self.player.rect.width // 2 - 10
+        shadow_y = screen_pos[1] + self.player.rect.height - 5
+        pygame.draw.ellipse(self.screen, (30, 80, 30), 
+                          (shadow_x, shadow_y, 20, 8))
+        
+        # Sprite
+        self.screen.blit(self.player.sprite, screen_pos)
+    
+    def _make_npc_drawer(self, npc):
+        """
+        Crée une fonction de dessin pour un PNJ.
+        Nécessaire pour capturer correctement la référence dans la closure.
+        """
+        def draw_npc():
+            screen_pos = self.camera.apply(npc.rect)
+            
+            # Ombre
+            shadow_x = screen_pos[0] + npc.rect.width // 2 - 10
+            shadow_y = screen_pos[1] + npc.rect.height - 5
+            pygame.draw.ellipse(self.screen, (30, 80, 30), 
+                              (shadow_x, shadow_y, 20, 8))
+            
+            # Sprite
+            self.screen.blit(npc.sprite, screen_pos)
+            
+            # Nom au-dessus de la tête
+            name_surf = self.font.render(npc.name, True, (200, 255, 200))
+            text_x = screen_pos[0] + npc.rect.width // 2 - name_surf.get_width() // 2
+            text_y = screen_pos[1] - 20
+            self.screen.blit(name_surf, (text_x, text_y))
+        
+        return draw_npc
 
     def draw(self):
+        """
+        Méthode de rendu principale avec Y-Sort et Caméra.
+        
+        Ordre de rendu :
+        1. Sol (tuiles) - avec offset caméra
+        2. Entités triées par Y (bâtiments, PNJ, joueur) - Y-Sort
+        3. Éclairage dynamique
+        4. UI (fixe, pas d'offset)
+        """
         # 1. RENDU DU DÉCOR (Selon le lieu)
         if self.location == "world":
-            # self.screen.fill((50, 160, 80)) # Vert Herbe
-            # AFFICHE LA CARTE EN PREMIER (C'est le sol)
-            self.world_map.draw(self.screen, self.assets)
-
-            if self.house.sprite: self.screen.blit(self.house.sprite, self.house.rect)
-            if self.workplace.sprite: self.screen.blit(self.workplace.sprite, self.workplace.rect)
-            if self.shop.sprite: self.screen.blit(self.shop.sprite, self.shop.rect)
-
+            # Effacer l'écran avec couleur de fond (visible si hors monde)
+            self.screen.fill((30, 50, 30))
+            
+            # === RENDU DU SOL AVEC OFFSET CAMÉRA ===
+            self._draw_world_tiles()
+            
+            # === Y-SORT : Collecter toutes les entités à dessiner ===
+            # On crée une liste de tuples (y_sort_value, draw_func)
+            entities_to_draw = []
+            
+            # Bâtiments (ils ont un y_sort basé sur leur bas)
+            if self.house.sprite:
+                entities_to_draw.append((
+                    self.house.rect.bottom,
+                    lambda: self._draw_building(self.house)
+                ))
+            
+            if self.workplace.sprite:
+                entities_to_draw.append((
+                    self.workplace.rect.bottom,
+                    lambda: self._draw_building(self.workplace)
+                ))
+            
+            if self.shop.sprite:
+                entities_to_draw.append((
+                    self.shop.rect.bottom,
+                    lambda: self._draw_building(self.shop)
+                ))
+            
             # PNJs
             for npc in self.npcs:
                 if npc.sprite:
-                    shadow_pos = (npc.rect.centerx - 10, npc.rect.bottom - 5)
-                    pygame.draw.ellipse(self.screen, (30, 80, 30), (shadow_pos[0], shadow_pos[1], 20, 8))
-                    self.screen.blit(npc.sprite, npc.rect)
-                    name_surf = self.font.render(npc.name, True, (200, 255, 200))
-                    text_x = npc.rect.centerx - (name_surf.get_width() // 2)
-                    self.screen.blit(name_surf, (text_x, npc.rect.top - 20))
-
-        elif self.location == "house":
-            self.draw_house_interior()
-
-        # 2. JOUEUR
-        if self.player.sprite:
-            shadow_pos = (self.player.rect.centerx - 10, self.player.rect.bottom - 5)
-            pygame.draw.ellipse(self.screen, (30, 80, 30), (shadow_pos[0], shadow_pos[1], 20, 8))
-            self.screen.blit(self.player.sprite, self.player.rect)
-
-        # --- SYSTÈME D'ÉCLAIRAGE DYNAMIQUE ---
-        # Applique l'ambiance jour/nuit et les sources de lumière
-        if self.location == "world":
-            # Mise à jour basée sur l'heure du jeu
+                    # Capturer la référence correctement dans la closure
+                    entities_to_draw.append((
+                        npc.rect.bottom,
+                        self._make_npc_drawer(npc)
+                    ))
+            
+            # Joueur
+            if self.player.sprite:
+                entities_to_draw.append((
+                    self.player.rect.bottom,
+                    lambda: self._draw_player()
+                ))
+            
+            # === TRIER PAR Y ET DESSINER ===
+            entities_to_draw.sort(key=lambda x: x[0])
+            for _, draw_func in entities_to_draw:
+                draw_func()
+            
+            # === ÉCLAIRAGE DYNAMIQUE ===
             dt = self.clock.get_time() / 1000.0
             self.lighting.update(dt, self.time_manager)
             
-            # Rendu de l'éclairage (ambiance + lumières)
-            self.lighting.render(self.screen)
+            # Rendu de l'éclairage avec offset caméra
+            self.lighting.render(self.screen, self.camera.offset)
             
-            # Halo autour du joueur la nuit (simule une lanterne)
+            # Halo autour du joueur la nuit (position écran)
             if self.lighting.is_night():
-                player_center = self.player.rect.center
-                self.lighting.render_player_light(self.screen, player_center, radius=100)
+                player_screen_pos = self.camera.apply(self.player.rect.center)
+                self.lighting.render_player_light(self.screen, player_screen_pos, radius=100)
+
+        elif self.location == "house":
+            self.draw_house_interior()
+            # Le joueur dans la maison (pas de caméra offset)
+            if self.player.sprite:
+                shadow_pos = (self.player.rect.centerx - 10, self.player.rect.bottom - 5)
+                pygame.draw.ellipse(self.screen, (30, 80, 30), (shadow_pos[0], shadow_pos[1], 20, 8))
+                self.screen.blit(self.player.sprite, self.player.rect)
         
         # 3. UI MODERNE
         self.draw_ui()
