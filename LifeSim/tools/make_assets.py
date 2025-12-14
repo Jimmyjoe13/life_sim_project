@@ -64,6 +64,48 @@ def make_npc():
     s = create_surface(32, 48)
     draw_character(s, C_SHIRT_NPC)
     save(s, "npc_villager.png")
+    save(s, "npc.png")  # Sprite par défaut
+
+def make_all_npcs():
+    """Génère les sprites de tous les PNJ du jeu."""
+    # Bob le Fermier - Vert
+    s = create_surface(32, 48)
+    draw_character(s, (50, 180, 80))
+    # Chapeau de fermier
+    pygame.draw.rect(s, (139, 90, 43), (6, 0, 20, 4))
+    pygame.draw.rect(s, (139, 90, 43), (10, 0, 12, 2))
+    save(s, "npc_bob.png")
+    
+    # Alice la Libraire - Violet
+    s = create_surface(32, 48)
+    draw_character(s, (150, 100, 180))
+    # Lunettes
+    pygame.draw.rect(s, (0, 0, 0), (10, 9, 5, 4), 1)
+    pygame.draw.rect(s, (0, 0, 0), (17, 9, 5, 4), 1)
+    pygame.draw.line(s, (0, 0, 0), (15, 10), (17, 10), 1)
+    save(s, "npc_alice.png")
+    
+    # Chef Marc - Blanc (toque)
+    s = create_surface(32, 48)
+    draw_character(s, (255, 255, 255))
+    # Toque de chef
+    pygame.draw.rect(s, (255, 255, 255), (8, 0, 16, 6))
+    pygame.draw.rect(s, (255, 255, 255), (6, 0, 20, 2))
+    save(s, "npc_chef_marc.png")
+    
+    # Coach Sarah - Orange sportif
+    s = create_surface(32, 48)
+    draw_character(s, (255, 140, 50))
+    # Bandeau
+    pygame.draw.rect(s, (255, 100, 100), (6, 4, 20, 3))
+    save(s, "npc_coach_sarah.png")
+    
+    # Maire Dupont - Costume noir
+    s = create_surface(32, 48)
+    draw_character(s, (30, 30, 40))
+    # Cravate rouge
+    pygame.draw.rect(s, (200, 50, 50), (14, 20, 4, 10))
+    save(s, "npc_maire_dupont.png")
 
 def make_house():
     # 64x64 (2x2 tuiles)
@@ -227,6 +269,7 @@ if __name__ == "__main__":
     
     make_player()
     make_npc()
+    make_all_npcs()  # Génère tous les PNJ individuels
     make_house()
     make_shop()
     make_office()

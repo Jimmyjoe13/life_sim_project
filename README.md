@@ -25,7 +25,7 @@ LifeSim est un moteur de simulation qui reproduit les mécaniques d'un jeu de vi
 
 ### Démo
 
-![Gameplay Screenshot](docs/screenshot.png) *(À ajouter)*
+![Gameplay Screenshot](docs/screenshot.png) _(À ajouter)_
 
 ## ✨ Fonctionnalités
 
@@ -68,7 +68,7 @@ LifeSim est un moteur de simulation qui reproduit les mécaniques d'un jeu de vi
 ```bash
 git clone [https://github.com/Jimmyjoe13/life_sim_project.git](https://github.com/Jimmyjoe13/life_sim_project.git)
 cd life_sim_project
-````
+```
 
 2.  **Installer les dépendances**
 
@@ -98,16 +98,19 @@ Le jeu se lance en fenêtre plein écran. Utilisez `Échap` pour quitter.
 
 ## 🎮 Contrôles
 
-| Action | Touche(s) | Description |
-|--------|-----------|-------------|
-| **Déplacement** | `↑ ↓ ← →` ou `ZQSD` | Déplacer le personnage |
-| **Interaction** | `Espace` | Entrer, dormir, travailler, etc. |
-| **Manger** | `E` | Consommer le premier objet de l'inventaire |
-| **Parler / Quête** | `T` | Discuter avec un PNJ / Prendre ou valider une quête |
-| **Acheter** | `1` / `2` | Acheter des objets (zone shop) |
-| **Sauvegarder** | `F5` | Sauvegarde rapide |
-| **Charger** | `F9` | Chargement rapide |
-| **Quitter** | `Échap` | Quitter le jeu |
+| Action             | Touche(s)           | Description                                         |
+| ------------------ | ------------------- | --------------------------------------------------- |
+| **Déplacement**    | `↑ ↓ ← →` ou `ZQSD` | Déplacer le personnage                              |
+| **Interaction**    | `Espace`            | Entrer, dormir, travailler, etc.                    |
+| **Manger**         | `E`                 | Consommer un objet (inventaire ouvert = sélection)  |
+| **Parler / Quête** | `T`                 | Discuter avec un PNJ / Prendre ou valider une quête |
+| **Offrir Cadeau**  | `G`                 | Offrir un cadeau au PNJ proche                      |
+| **Inventaire**     | `I`                 | Ouvrir/Fermer l'inventaire graphique                |
+| **Compétences**    | `K`                 | Ouvrir/Fermer le menu des skills                    |
+| **Acheter**        | `1-9`               | Acheter des objets (zone shop)                      |
+| **Sauvegarder**    | `F5`                | Sauvegarde rapide                                   |
+| **Charger**        | `F9`                | Chargement rapide                                   |
+| **Quitter**        | `Échap`             | Quitter le jeu                                      |
 
 ## 🏗️ Architecture
 
@@ -117,7 +120,8 @@ Le projet suit une architecture **MVC modulaire** pour faciliter l'évolutivité
 LifeSim/
 ├── assets/              # Assets générés (sprites PNG)
 ├── data/
-│   └── saves/           # Fichiers de sauvegarde JSON
+│   ├── saves/           # Fichiers de sauvegarde JSON
+│   └── npcs.json        # Configuration des PNJ
 ├── tools/
 │   └── make_assets.py   # Générateur procédural d'images (Pixel Art)
 ├── src/
@@ -131,12 +135,17 @@ LifeSim/
 │   │   ├── player.py
 │   │   ├── house.py
 │   │   ├── npc.py
+│   │   ├── npc_manager.py   # Gestionnaire de PNJ (JSON)
 │   │   ├── quest.py         # Structure des quêtes
 │   │   ├── shop.py
 │   │   ├── workplace.py
 │   │   └── item.py
 │   ├── systems/         # Systèmes de jeu
+│   │   ├── relationship_system.py  # Relations sociales
+│   │   ├── skill_system.py         # Compétences/XP
+│   │   └── event_system.py         # Événements aléatoires
 │   ├── ui/              # Interface utilisateur
+│   │   └── inventory_ui.py         # Menu inventaire & skills
 │   └── main.py          # Point d'entrée
 ├── tests/               # Tests unitaires
 └── requirements.txt
@@ -144,39 +153,47 @@ LifeSim/
 
 ### Principes architecturaux
 
-  - **Séparation des préoccupations** : MVC strict
-  - **Singleton Pattern** : Asset Manager pour optimiser la mémoire
-  - **Data Classes** : Structures d'objets typées
-  - **Event-driven** : Boucle de jeu réactive
+- **Séparation des préoccupations** : MVC strict
+- **Singleton Pattern** : Asset Manager pour optimiser la mémoire
+- **Data Classes** : Structures d'objets typées
+- **Event-driven** : Boucle de jeu réactive
 
 ## 🛠️ Technologies
 
-  - **[Pygame CE](https://pyga.me/)** : Moteur de jeu 2D
-  - **[Python 3.10+](https://www.python.org/)** : Langage de programmation
-  - **[Pandas](https://pandas.pydata.org/)** : Gestion de données (optionnel)
-  - **JSON** : Persistance des sauvegardes
+- **[Pygame CE](https://pyga.me/)** : Moteur de jeu 2D
+- **[Python 3.10+](https://www.python.org/)** : Langage de programmation
+- **[Pandas](https://pandas.pydata.org/)** : Gestion de données (optionnel)
+- **JSON** : Persistance des sauvegardes
 
 ## 🗺️ Roadmap
 
 ### ✅ Implémenté
 
-  - [x] Système de déplacement et collisions
-  - [x] Gestion faim/énergie
-  - [x] Économie (magasin + travail)
-  - [x] Sauvegarde/chargement JSON
-  - [x] Multi-environnements (intérieur/extérieur)
-  - [x] PNJ avec dialogues
-  - [x] **Système de quêtes** : Missions données par les PNJ
-  - [x] **Cycle jour/nuit** : Assombrissement progressif
-  - [x] **Système de tuiles** : Carte avec herbe, chemins, eau
+- [x] Système de déplacement et collisions
+- [x] Gestion faim/énergie
+- [x] Économie (magasin + travail)
+- [x] Sauvegarde/chargement JSON
+- [x] Multi-environnements (intérieur/extérieur)
+- [x] PNJ avec dialogues
+- [x] **Système de quêtes** : Missions données par les PNJ
+- [x] **Cycle jour/nuit** : Assombrissement progressif
+- [x] **Système de tuiles** : Carte avec herbe, chemins, eau
+- [x] **5 PNJ uniques** : Bob, Alice, Chef Marc, Coach Sarah, Maire Dupont
+- [x] **Relations sociales** : Jauge d'amitié avec les PNJ (0-100)
+- [x] **Système de cadeaux** : Offrir des objets aux PNJ
+- [x] **Compétences (XP)** : Cuisine, Social, Travail, Forme
+- [x] **Événements aléatoires** : Météo, visiteurs, trouvailles
+- [x] **Menu Inventaire** : Interface graphique avec grille
+- [x] **Menu Compétences** : Barres de progression XP
+- [x] **9 objets différents** : Nourriture, boissons, cadeaux
 
 ### 🔜 À venir
 
-  - [ ] **Augmenter le nombre de PNJ**
-  - [ ] **Relations sociales** : Jauge d'amitié avec les PNJ
-  - [ ] **Compétences** : Arbre de progression du joueur (XP)
-  - [ ] **Événements aléatoires** : Surprises et défis dynamiques (Pluie, visiteurs...)
-  - [ ] **Menu Inventaire** : Interface graphique pour gérer les objets
+- [ ] **Jardinage** : Planter et récolter des légumes
+- [ ] **Cuisine** : Combiner des ingrédients pour créer des plats
+- [ ] **Mini-jeux** : Activités interactives pour gagner de l'XP
+- [ ] **Saisons** : Changements visuels et événements saisonniers
+- [ ] **Maisons de PNJ** : Pouvoir visiter les habitations des autres personnages
 
 ## 🤝 Contribution
 
@@ -190,9 +207,9 @@ Les contributions sont les bienvenues \! Pour contribuer :
 
 ### Standards de code
 
-  - Suivre [PEP 8](https://pep8.org/)
-  - Documenter les fonctions avec docstrings
-  - Ajouter des tests pour les nouvelles fonctionnalités
+- Suivre [PEP 8](https://pep8.org/)
+- Documenter les fonctions avec docstrings
+- Ajouter des tests pour les nouvelles fonctionnalités
 
 ## 📄 License
 
@@ -204,9 +221,9 @@ Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 
 ## 🙏 Remerciements
 
-  - Pygame Community pour la documentation
-  - Inspiré par Stardew Valley et The Sims
+- Pygame Community pour la documentation
+- Inspiré par Stardew Valley et The Sims
 
------
+---
 
 **Développé avec ❤️ et Python**

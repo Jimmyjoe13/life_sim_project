@@ -1,0 +1,129 @@
+{
+    "npcs": [
+        {
+            "id": "bob",
+            "name": "Bob le Fermier",
+            "x": 600,
+            "y": 300,
+            "personality": "friendly",
+            "dialogues": [
+                "Salut ! Belle journée pour cultiver !",
+                "Tu veux une pomme ?",
+                "Le travail à la ferme, c'est dur mais gratifiant !"
+            ],
+            "favorite_gifts": ["Pomme Rouge", "Café Noir"],
+            "disliked_gifts": ["Livre Passionnant"],
+            "schedule": {
+                "morning": {"x": 600, "y": 300},
+                "afternoon": {"x": 650, "y": 350},
+                "evening": {"x": 500, "y": 400}
+            },
+            "quest": {
+                "title": "Une faim de loup",
+                "description": "Apporte une Pomme Rouge à Bob",
+                "target_item": "Pomme Rouge",
+                "reward_amount": 50
+            }
+        },
+        {
+            "id": "alice",
+            "name": "Alice la Libraire",
+            "x": 200,
+            "y": 450,
+            "personality": "shy",
+            "dialogues": [
+                "Oh... bonjour...",
+                "Tu aimes lire aussi ?",
+                "Les livres sont mes meilleurs amis."
+            ],
+            "favorite_gifts": ["Livre Passionnant", "Boîte de Chocolats"],
+            "disliked_gifts": ["Boisson Énergisante"],
+            "schedule": {
+                "morning": {"x": 200, "y": 450},
+                "afternoon": {"x": 250, "y": 500},
+                "evening": {"x": 150, "y": 400}
+            },
+            "quest": {
+                "title": "Lecture du soir",
+                "description": "Apporte un Café Noir à Alice pour sa soirée lecture",
+                "target_item": "Café Noir",
+                "reward_amount": 75
+            }
+        },
+        {
+            "id": "chef_marc",
+            "name": "Chef Marc",
+            "x": 450,
+            "y": 150,
+            "personality": "enthusiastic",
+            "dialogues": [
+                "Bienvenue dans ma cuisine imaginaire !",
+                "Tu as faim ? J'ai toujours quelque chose au feu !",
+                "Un bon repas, c'est le secret du bonheur !"
+            ],
+            "favorite_gifts": ["Pizza Margherita", "Croissant"],
+            "disliked_gifts": ["Bouquet de Fleurs"],
+            "schedule": {
+                "morning": {"x": 450, "y": 150},
+                "afternoon": {"x": 480, "y": 200},
+                "evening": {"x": 400, "y": 180}
+            },
+            "quest": {
+                "title": "Défi Culinaire",
+                "description": "Apporte un Sandwich Complet au Chef Marc",
+                "target_item": "Sandwich Complet",
+                "reward_amount": 100
+            }
+        },
+        {
+            "id": "coach_sarah",
+            "name": "Coach Sarah",
+            "x": 100,
+            "y": 200,
+            "personality": "energetic",
+            "dialogues": [
+                "Hey ! Prêt pour un entraînement ?",
+                "N'oublie pas de bien manger et dormir !",
+                "L'énergie, c'est la clé de tout !"
+            ],
+            "favorite_gifts": ["Boisson Énergisante", "Pomme Rouge"],
+            "disliked_gifts": ["Pizza Margherita"],
+            "schedule": {
+                "morning": {"x": 100, "y": 200},
+                "afternoon": {"x": 150, "y": 250},
+                "evening": {"x": 80, "y": 180}
+            },
+            "quest": {
+                "title": "Boost d'Énergie",
+                "description": "Apporte une Boisson Énergisante à Coach Sarah",
+                "target_item": "Boisson Énergisante",
+                "reward_amount": 80
+            }
+        },
+        {
+            "id": "maire_dupont",
+            "name": "Maire Dupont",
+            "x": 350,
+            "y": 400,
+            "personality": "formal",
+            "dialogues": [
+                "Bienvenue dans notre belle ville !",
+                "N'hésitez pas à participer à la vie de la communauté.",
+                "Une ville prospère est une ville où chacun contribue."
+            ],
+            "favorite_gifts": ["Boîte de Chocolats", "Bouquet de Fleurs"],
+            "disliked_gifts": [],
+            "schedule": {
+                "morning": {"x": 350, "y": 400},
+                "afternoon": {"x": 400, "y": 420},
+                "evening": {"x": 300, "y": 380}
+            },
+            "quest": {
+                "title": "Contribution Citoyenne",
+                "description": "Offrez un Bouquet de Fleurs au Maire pour embellir la ville",
+                "target_item": "Bouquet de Fleurs",
+                "reward_amount": 150
+            }
+        }
+    ]
+}

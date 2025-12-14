@@ -49,19 +49,6 @@ class Player:
             self.is_alive = False
             print("💀 Mort du joueur.")
 
-    def add_item(self, item: Item):
-        self.inventory.append(item)
-        print(f"🎒 {self.name} a ramassé : {item.name}")
-
-    def eat_item(self, index: int = 0):
-        if not self.inventory: return
-        if index < len(self.inventory):
-            item = self.inventory.pop(index)
-            self.stats.hunger += item.hunger_value
-            self.stats.energy += item.energy_value
-            self.stats.hunger = min(100.0, self.stats.hunger)
-            self.stats.energy = min(100.0, self.stats.energy)
-
     def move(self, dx: int, dy: int, dt: float) -> None:
         if self.is_alive:
             self.position[0] += dx * self.speed * dt

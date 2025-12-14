@@ -11,7 +11,7 @@ import pygame
 from src.core.settings import *
 from src.core.asset_manager import AssetManager
 from src.entities.player import Player
-from src.entities.item import create_apple
+from src.entities.item import create_apple, ItemCategory
 from src.entities.shop import Shop
 from src.core.save_manager import SaveManager
 from src.entities.workplace import Workplace
@@ -21,6 +21,15 @@ from src.core.time_manager import TimeManager
 from src.core.world_map import WorldMap
 from src.entities.quest import Quest
 from src.systems.relationship_system import RelationshipSystem
+from src.systems.skill_system import SkillSystem, SkillType
+from src.systems.event_system import EventSystem
+from src.entities.npc_manager import NPCManager
+from src.ui.inventory_ui import InventoryUI, SkillsUI
+from src.ui.hud import ModernHUD, ControlsHint, QuestIndicator
+from src.ui.dialogue_ui import MessageBox, ContextMenu
+from src.ui.minimap import MiniMap
+from src.ui.house_interior import ModernHouseInterior
+from src.ui.shop_ui import ShopUI
 
 class Game:
     def __init__(self):
@@ -45,8 +54,28 @@ class Game:
         # 3. SYSTÈMES (ON LES INITIALISE ICI MAINTENANT !)
         # C'est important qu'ils soient là AVANT les PNJ
         self.save_manager = SaveManager()
-        self.relationship_system = RelationshipSystem() # <--- IL EST ICI !
+        self.relationship_system = RelationshipSystem()
         self.time_manager = TimeManager()
+        
+        # NOUVEAUX SYSTÈMES
+        self.skill_system = SkillSystem()
+        self.event_system = EventSystem()
+        
+        # GESTIONNAIRE DE PNJ
+        self.npc_manager = NPCManager(relationship_manager=self.relationship_system)
+        
+        # INTERFACES UTILISATEUR
+        self.inventory_ui = InventoryUI(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.skills_ui = SkillsUI(SCREEN_WIDTH, SCREEN_HEIGHT)
+        
+        # HUD MODERNE
+        self.modern_hud = ModernHUD(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.controls_hint = ControlsHint(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.quest_indicator = QuestIndicator(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.message_box = MessageBox(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.context_menu = ContextMenu()
+        self.minimap = MiniMap(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.shop_ui = ShopUI(SCREEN_WIDTH, SCREEN_HEIGHT)
 
         # 4. MONDE EXTÉRIEUR
         self.shop = Shop(600, 100)
@@ -59,35 +88,31 @@ class Game:
         self.house = House(300, 50)
         self.house.set_outdoor_sprite(self.assets.get_image("house"))
         self.house.setup_interior(self.assets)
-
-        # 5. PNJS (MAINTENANT ÇA VA MARCHER)
-        self.npcs = []
         
-        # Quête de Bob
-        quest_bob = Quest(
-            title="Livraison Fruitée",
-            description="Apporte une Pomme Rouge à Bob",
-            target_item="Pomme Rouge",
-            reward_amount=50
-        )
+        # INTÉRIEUR MODERNE DE LA MAISON
+        self.house_interior = ModernHouseInterior(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.house_interior.setup(self.assets)
 
-        # Bob peut maintenant recevoir self.relationship_system car il existe déjà !
-        bob = NPC("Bob", 300, 200, [
-            "Quelle belle journée !",
-            "J'ai vraiment très faim...",
-        ], quest=quest_bob, relationship_manager=self.relationship_system)
-
-        bob.set_sprite(self.assets.get_image("npc_villager"))
-        self.npcs.append(bob)
-
-        alice = NPC("Alice", 500, 500, [
-            "Fais attention à ton énergie.",
-            "J'adore me promener sur ce fond vert.",
-            "Si tu es fatigué, rentre chez toi dormir."
-        ], relationship_manager=self.relationship_system)
-        
-        alice.set_sprite(self.assets.get_image("npc_villager"))
-        self.npcs.append(alice)
+        # 5. PNJS - Chargement depuis JSON
+        data_path = os.path.join(parent_dir, "data", "npcs.json")
+        if self.npc_manager.load_from_json(data_path):
+            self.npcs = self.npc_manager.get_all_npcs()
+            self.npc_manager.set_sprites(self.assets)
+        else:
+            # Fallback : créer des PNJ manuellement si le fichier n'existe pas
+            self.npcs = []
+            quest_bob = Quest(
+                title="Livraison Fruitée",
+                description="Apporte une Pomme Rouge à Bob",
+                target_item="Pomme Rouge",
+                reward_amount=50
+            )
+            bob = NPC("Bob", 300, 200, [
+                "Quelle belle journée !",
+                "J'ai vraiment très faim...",
+            ], quest=quest_bob, relationship_manager=self.relationship_system)
+            bob.set_sprite(self.assets.get_image("npc_villager"))
+            self.npcs.append(bob)
 
         # 6. ETAT DU JEU
         self.location = "world"
@@ -140,8 +165,8 @@ class Game:
                     break
         
         elif self.location == "house":
-            # On demande à la maison quel meuble on touche
-            interact_obj = self.house.get_interactable_object(self.player.rect)
+            # On demande à l'intérieur moderne quel meuble on touche
+            interact_obj = self.house_interior.get_interactable_object(self.player.rect)
 
         # --- BOUCLE D'ÉVÉNEMENTS ---
         for event in pygame.event.get():
@@ -149,39 +174,85 @@ class Game:
                 self.is_running = False
             
             if event.type == pygame.KEYDOWN:
+                # Ouvrir/Fermer Inventaire
+                if event.key == pygame.K_i:
+                    self.inventory_ui.toggle()
+                    self.skills_ui.close()  # Ferme l'autre menu
+                
+                # Ouvrir/Fermer Compétences
+                if event.key == pygame.K_k:
+                    self.skills_ui.toggle()
+                    self.inventory_ui.close()
+                
+                # Toggle Mini-carte
+                if event.key == pygame.K_m:
+                    self.minimap.toggle()
+                
                 # Manger (Possible partout)
                 if event.key == pygame.K_e:
-                    self.player.eat_item(0)
+                    if self.inventory_ui.is_open and self.inventory_ui.selected_index >= 0:
+                        # Manger l'objet sélectionné
+                        if self.inventory_ui.selected_index < len(self.player.inventory):
+                            item = self.player.inventory[self.inventory_ui.selected_index]
+                            if item.category in [ItemCategory.FOOD, ItemCategory.DRINK]:
+                                self.player.eat_item(self.inventory_ui.selected_index)
+                                self.skill_system.gain_xp(SkillType.COOKING, 5)
+                                self.show_message(f"Miam ! {item.name} consommé.", 90)
+                    else:
+                        self.player.eat_item(0)
 
                 # --- ACTIONS DU MONDE ---
                 if self.location == "world":
                     if in_shop_zone:
-                        if event.key == pygame.K_1:
-                            self.last_message = self.shop.try_buy_item(self.player, 0)
-                            self.message_timer = 120
-                        elif event.key == pygame.K_2:
-                            self.last_message = self.shop.try_buy_item(self.player, 1)
-                            self.message_timer = 120
+                        # Achat d'items avec touches 1-9
+                        shop_keys = {
+                            pygame.K_1: 0, pygame.K_2: 1, pygame.K_3: 2,
+                            pygame.K_4: 3, pygame.K_5: 4, pygame.K_6: 5,
+                            pygame.K_7: 6, pygame.K_8: 7, pygame.K_9: 8,
+                        }
+                        if event.key in shop_keys:
+                            item_index = shop_keys[event.key]
+                            result = self.shop.try_buy_item(self.player, item_index)
+                            self.show_message(result, 120)
 
                     if in_work_zone and event.key == pygame.K_SPACE:
-                        self.last_message = self.workplace.work(self.player)
-                        self.message_timer = 120
+                        result = self.workplace.work(self.player)
+                        # Gagner de l'XP en travaillant
+                        self.skill_system.gain_xp(SkillType.WORK, 15)
+                        self.show_message(result, 120)
 
                     if nearby_npc and event.key == pygame.K_t:
                         # 1. On récupère la réponse du PNJ
                         response = nearby_npc.talk(self.player)
                         
                         # 2. On augmente l'amitié (+2 points par discussion)
-                        # On ne gagne de l'amitié que si ce n'est pas une quête active bloquante
-                        # (Optionnel, ici on simplifie : parler = aimer)
                         self.relationship_system.modify_friendship(nearby_npc.name, 2)
+                        # Gagner de l'XP social
+                        self.skill_system.gain_xp(SkillType.SOCIAL, 5)
                         
                         # 3. On récupère le nouveau statut pour l'afficher
                         new_score = self.relationship_system.get_friendship(nearby_npc.name)
                         status = self.relationship_system.get_relationship_status(nearby_npc.name)
                         
-                        self.last_message = f"{response} (Amitié: {new_score} - {status})"
-                        self.message_timer = 180
+                        self.show_message(f"{response} (Amitié: {new_score} - {status})", 180)
+                    
+                    # OFFRIR UN CADEAU (nouvelle touche G)
+                    if nearby_npc and event.key == pygame.K_g:
+                        # Chercher un cadeau dans l'inventaire
+                        gift_found = False
+                        for i, item in enumerate(self.player.inventory):
+                            if item.category == ItemCategory.GIFT:
+                                # Offrir le cadeau
+                                bonus, reaction = self.npc_manager.check_gift_reaction(nearby_npc, item.name)
+                                self.relationship_system.modify_friendship(nearby_npc.name, bonus + item.friendship_value)
+                                self.skill_system.gain_xp(SkillType.SOCIAL, 10)
+                                self.player.inventory.pop(i)
+                                self.show_message(reaction, 150)
+                                gift_found = True
+                                break
+                        
+                        if not gift_found:
+                            self.show_message("Pas de cadeau dans l'inventaire !", 90)
                     
                     if can_enter_house and event.key == pygame.K_SPACE:
                         self.switch_location("house")
@@ -194,34 +265,47 @@ class Game:
                         if obj_type == "bed":
                             self.player.stats.energy = 100
                             self.player.stats.health += 10
-                            self.last_message = "Zzz... Une bonne nuit de sommeil !"
-                            self.message_timer = 120
+                            self.skill_system.gain_xp(SkillType.FITNESS, 10)
+                            self.show_message("Zzz... Une bonne nuit de sommeil !", 120)
                         elif obj_type == "kitchen" or obj_type == "fridge":
-                            self.last_message = "Le frigo est vide... Il faut aller au Shop !"
-                            self.message_timer = 120
+                            self.show_message("Le frigo est vide... Il faut aller au Shop !", 120)
                         elif obj_type == "toilet":
-                            self.last_message = "Occupé..."
-                            self.message_timer = 60
+                            self.show_message("Occupé...", 60)
                         elif obj_type == "sofa":
-                            self.last_message = "Petite pause Netflix."
-                            self.player.stats.energy += 5 # Petit bonus repos
-                            self.message_timer = 120
+                            self.show_message("Petite pause Netflix.", 120)
+                            self.player.stats.energy += 5
+                            self.skill_system.gain_xp(SkillType.FITNESS, 3)
 
-                # --- ACTIONS GLOBALES ---
                 if event.key == pygame.K_F5:
-                    if self.save_manager.save(self.player):
-                        self.last_message = "Partie Sauvegardee !"
-                        self.message_timer = 120
+                    if self.save_manager.save(
+                        self.player, 
+                        self.time_manager, 
+                        self.relationship_system,
+                        self.skill_system,
+                        self.event_system
+                    ):
+                        self.show_message("Partie Sauvegardée !", 120)
                 if event.key == pygame.K_F9:
-                    if self.save_manager.load(self.player):
-                        self.last_message = "Partie Chargee !"
-                        self.message_timer = 120
+                    if self.save_manager.load(
+                        self.player,
+                        self.time_manager,
+                        self.relationship_system,
+                        self.skill_system,
+                        self.event_system
+                    ):
+                        self.show_message("Partie Chargée !", 120)
 
         # --- MOUVEMENT ---
+        # Ne pas bouger si un menu est ouvert
+        if self.inventory_ui.is_open or self.skills_ui.is_open:
+            self.move_intent = (0, 0)
+            return
+        
         dx, dy = 0, 0
-        if keys[pygame.K_LEFT] or keys[pygame.K_q]: dx = -1
+        # Support AZERTY (ZQSD) et flèches directionnelles
+        if keys[pygame.K_LEFT] or keys[pygame.K_q] or keys[pygame.K_a]: dx = -1
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]: dx = 1
-        if keys[pygame.K_UP] or keys[pygame.K_z]: dy = -1
+        if keys[pygame.K_UP] or keys[pygame.K_z] or keys[pygame.K_w]: dy = -1
         if keys[pygame.K_DOWN] or keys[pygame.K_s]: dy = 1
         
         if dx != 0 and dy != 0:
@@ -235,30 +319,37 @@ class Game:
         # Mise à jour du temps
         self.time_manager.update(dt, TIME_SPEED)
         
+        # Mise à jour des positions des PNJ selon l'heure
+        current_hour = int(self.time_manager.minutes // 60)
+        self.npc_manager.update_positions_by_time(current_hour)
+        
+        # Vérifier les événements aléatoires
+        game_minutes = int(self.time_manager.day * 1440 + self.time_manager.minutes)
+        event = self.event_system.update(game_minutes)
+        if event:
+            self.event_system.apply_event_effects(self.player, event)
+            self.show_message(event.message)
+        
+        # Mise à jour météo toutes les heures de jeu
+        if int(self.time_manager.minutes) % 60 == 0:
+            self.event_system.update_weather()
+        
+        # Gestion du timer de message
         if self.message_timer > 0:
             self.message_timer -= 1
-        else:
+        elif self.message_timer == 0 and self.last_message:
+            self.message_box.hide()
             self.last_message = ""
+    
+    def show_message(self, message: str, duration: int = 180):
+        """Affiche un message avec le nouveau système de message box."""
+        self.last_message = message
+        self.message_timer = duration
+        self.message_box.show(message)
 
     def draw_house_interior(self):
-        """Dessine l'intérieur détaillé de la maison"""
-        # 1. Sols
-        # Parquet général (Salon/Chambre)
-        pygame.draw.rect(self.screen, (210, 180, 140), (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
-        # Carrelage Cuisine (Bas Gauche) - Gris clair
-        pygame.draw.rect(self.screen, (200, 200, 200), (0, SCREEN_HEIGHT//2, SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
-        # Carrelage Salle de bain (Haut Droite) - Bleu très clair
-        pygame.draw.rect(self.screen, (220, 220, 255), (SCREEN_WIDTH//2, 0, SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
-
-        # 2. Murs de séparation (Lignes grises)
-        # Verticale milieu
-        pygame.draw.line(self.screen, (100, 100, 100), (SCREEN_WIDTH//2, 0), (SCREEN_WIDTH//2, SCREEN_HEIGHT-100), 8)
-        # Horizontale milieu
-        pygame.draw.line(self.screen, (100, 100, 100), (0, SCREEN_HEIGHT//2), (SCREEN_WIDTH, SCREEN_HEIGHT//2), 8)
-
-        # 3. Affichage des objets
-        for obj in self.house.interior_objects:
-            self.screen.blit(obj["sprite"], obj["rect"])
+        """Dessine l'intérieur moderne de la maison."""
+        self.house_interior.draw(self.screen)
 
     def draw(self):
         # 1. RENDU DU DÉCOR (Selon le lieu)
@@ -301,65 +392,57 @@ class Game:
             # On colle par-dessus tout le reste
             self.screen.blit(self.night_filter, (0, 0))
         
-        # 3. UI
+        # 3. UI MODERNE
         self.draw_ui()
+        
+        # 4. Mini-carte (seulement en extérieur)
+        if self.location == "world":
+            buildings = {
+                "shop": self.shop.rect,
+                "house": self.house.rect,
+                "workplace": self.workplace.rect
+            }
+            self.minimap.draw(self.screen, self.player, self.npcs, buildings)
+            
+            # Afficher le Shop UI si le joueur est près du magasin
+            if self.shop.check_collision(self.player.rect):
+                self.shop_ui.draw(self.screen, self.shop, self.player.stats.money)
+        
+        # 5. INTERFACES INVENTAIRE / COMPÉTENCES
+        self.inventory_ui.draw(self.screen, self.player)
+        self.skills_ui.draw(self.screen, self.skill_system)
+        
+        # 6. Hints de contrôles (en bas de l'écran)
+        self.controls_hint.draw(self.screen)
+        
+        # 7. Message box (dialogues/infos)
+        self.message_box.update(self.clock.get_time() / 1000.0)
+        self.message_box.draw(self.screen)
+        
         pygame.display.flip()
 
     def draw_ui(self):
-        stats = self.player.stats
-        
-        # Panel Stats
-        panel = pygame.Surface((250, 150))
-        panel.set_alpha(150)
-        panel.fill((0, 0, 0))
-        self.screen.blit(panel, (5, 5))
-
-        time_str = self.time_manager.get_time_string()
-        day_str = f"Jour {self.time_manager.day}"
-
-        infos = [
-            f"📅 {day_str} - 🕒 {time_str}",
-            f"Nom: {self.player.name}",
-            f"Vie: {int(stats.health)}%  Nrj: {int(stats.energy)}%",
-            f"Faim: {int(stats.hunger)}%  Argent: {stats.money} E",
-            "--- Inventaire ---"
-        ]
+        # Mise à jour et dessin du HUD moderne
+        dt = self.clock.get_time() / 1000.0  # Delta time pour animations
+        self.modern_hud.update(dt, self.player.stats)
+        self.modern_hud.draw(self.screen, self.player, self.time_manager, self.event_system)
 
         # --- AJOUT : Affichage Quête Active ---
-        # On regarde si un PNJ a une quête active
         active_quest_text = ""
         for npc in self.npcs:
             if npc.quest and npc.quest.is_active and not npc.quest.is_completed:
-                active_quest_text = f"QUÊTE: {npc.quest.description}"
+                active_quest_text = npc.quest.description
                 break
-
-        if active_quest_text:
-            infos.append("----------------")
-            infos.append(active_quest_text)
         
-        if not self.player.inventory: infos.append("(Vide)")
-        else:
-            for item in self.player.inventory[:3]: infos.append(f"- {item.name}")
-
-        for i, line in enumerate(infos):
-            color = WHITE
-            if "Faim" in line and stats.hunger < 20: color = (255, 100, 100)
-            text_surf = self.font.render(line, True, color)
-            self.screen.blit(text_surf, (10, 10 + i * 20))
-
-        # Bulle Dialogue
-        if self.last_message:
-            box_rect = pygame.Rect(100, SCREEN_HEIGHT - 100, SCREEN_WIDTH - 200, 80)
-            pygame.draw.rect(self.screen, (0, 0, 0), box_rect)
-            pygame.draw.rect(self.screen, (255, 255, 255), box_rect, 2)
-            msg_surf = self.font.render(self.last_message, True, WHITE)
-            text_rect = msg_surf.get_rect(center=box_rect.center)
-            self.screen.blit(msg_surf, text_rect)
+        if active_quest_text:
+            self.quest_indicator.draw(self.screen, active_quest_text)
 
         # --- MENUS CONTEXTUELS ---
         if self.location == "world":
             if self.shop.check_collision(self.player.rect):
-                self.draw_context_menu(self.shop.rect, "[1] Pomme(10) [2] Café(25)")
+                # Afficher le menu du shop avec plus d'options
+                menu_text = "[1-9] Acheter | Shop ouvert !"
+                self.draw_context_menu(self.shop.rect, menu_text)
             
             if self.workplace.check_collision(self.player.rect):
                 self.draw_context_menu(self.workplace.rect, "[ESPACE] Travailler")
@@ -393,10 +476,7 @@ class Game:
                 self.draw_context_menu(out_rect, "Sortir")
 
     def draw_context_menu(self, target_rect, text):
-        surf = self.font.render(text, True, (255, 255, 0))
-        bg = pygame.Rect(target_rect.centerx - surf.get_width()//2 - 5, target_rect.top - 40, surf.get_width() + 10, 25)
-        pygame.draw.rect(self.screen, (0,0,0), bg)
-        self.screen.blit(surf, (bg.x + 5, bg.y))
+        self.context_menu.draw(self.screen, target_rect, text)
 
     def run(self):
         while self.is_running:

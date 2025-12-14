@@ -1,7 +1,11 @@
 # src/entities/shop.py
 from typing import List
 import pygame
-from src.entities.item import Item, create_apple, create_coffee
+from src.entities.item import (
+    Item, create_apple, create_coffee, create_croissant, 
+    create_sandwich, create_energy_drink, create_pizza,
+    create_flower, create_chocolate, create_book
+)
 from src.entities.player import Player
 
 class Shop:
@@ -12,11 +16,17 @@ class Shop:
         self.rect = pygame.Rect(x, y, 50, 50)
         self.sprite = None  # Pour une future amélioration graphique
         
-        # Stock infini pour le MVP : on définit ce qu'il vend
-        # Dans un jeu complet, ce serait une liste dynamique
+        # Stock complet avec tous les items disponibles
         self.stock_catalogue: List[Item] = [
             create_apple(),
-            create_coffee()
+            create_croissant(),
+            create_coffee(),
+            create_sandwich(),
+            create_energy_drink(),
+            create_pizza(),
+            create_flower(),
+            create_chocolate(),
+            create_book()
         ]
 
     def set_sprite(self, image):
