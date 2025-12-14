@@ -9,6 +9,22 @@ import pygame
 import os
 import random
 import math
+import sys
+
+# Ajouter le dossier tools au path pour importer graphics_utils
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from graphics_utils import (
+    PerlinNoise, 
+    DitherPattern,
+    apply_dither_gradient,
+    create_radial_gradient,
+    apply_vertical_gradient,
+    apply_noise_texture,
+    smooth_edges,
+    add_soft_outline,
+    create_tile_variation,
+    add_detail_pixels
+)
 
 # Configuration
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -360,59 +376,212 @@ def make_npc_sprites():
 # =============================================================================
 
 def make_house():
-    """Maison moderne 96x96."""
-    print("\n🏠 Génération de la maison...")
+    """
+    Maison moderne 96x96 avec textures avancées.
+    
+    Améliorations :
+    - Texture bois avec Perlin Noise
+    - Dégradé sur le toit pour effet 3D
+    - Fenêtres avec reflets réalistes
+    - Ombre douce au sol
+    """
+    print("\n🏠 Génération de la maison AMÉLIORÉE...")
     s = create_surface(96, 96)
     
-    # Ombre au sol
-    pygame.draw.ellipse(s, (0, 0, 0, 40), (8, 80, 80, 12))
+    # Générateur de bruit pour les textures
+    wood_noise = PerlinNoise(seed=1234)
     
-    # Murs principaux
-    pygame.draw.rect(s, BUILDING["wood_light"], (12, 40, 72, 48))
-    pygame.draw.rect(s, BUILDING["wood_medium"], (12, 40, 24, 48))  # Ombre gauche
+    # === OMBRE AU SOL (plus douce et réaliste) ===
+    # Dégradé radial pour l'ombre
+    for y in range(80, 94):
+        for x in range(6, 90):
+            # Distance au centre de l'ombre
+            cx, cy = 48, 87
+            dist = math.sqrt((x - cx) ** 2 + ((y - cy) * 2) ** 2)
+            max_dist = 45
+            
+            if dist < max_dist:
+                alpha = int(40 * (1 - dist / max_dist))
+                current = s.get_at((x, y))
+                if current[3] == 0:  # Pixel transparent
+                    s.set_at((x, y), (0, 0, 0, alpha))
     
-    # Texture bois horizontale
-    for y in range(44, 88, 8):
-        pygame.draw.line(s, BUILDING["wood_dark"], (12, y), (84, y), 1)
+    # === MURS AVEC TEXTURE BOIS ===
+    wall_left, wall_top = 12, 40
+    wall_width, wall_height = 72, 48
     
-    # Toit
-    pygame.draw.polygon(s, BUILDING["roof_red"], [
-        (4, 42), (48, 8), (92, 42)
-    ])
-    pygame.draw.polygon(s, BUILDING["roof_red_dark"], [
-        (4, 42), (48, 8), (48, 42)
-    ])
+    for y in range(wall_top, wall_top + wall_height):
+        for x in range(wall_left, wall_left + wall_width):
+            # Bruit de Perlin pour variation de couleur
+            n = wood_noise.octave(x * 0.1, y * 0.08, octaves=2, persistence=0.6)
+            
+            # Ombre progressive de gauche à droite
+            t = (x - wall_left) / wall_width
+            shadow_factor = 0.75 + t * 0.25  # Gauche plus sombre
+            
+            # Couleur de base interpolée
+            base = BUILDING["wood_light"]
+            color = (
+                max(0, min(255, int(base[0] * shadow_factor + n * 15))),
+                max(0, min(255, int(base[1] * shadow_factor + n * 12))),
+                max(0, min(255, int(base[2] * shadow_factor + n * 8))),
+                255
+            )
+            s.set_at((x, y), color)
     
-    # Texture tuiles
-    for y in range(15, 42, 6):
-        for x in range(10, 85, 10):
-            pygame.draw.arc(s, BUILDING["roof_red_dark"], (x, y, 10, 8), 0, 3.14, 1)
+    # Lignes horizontales du bardage bois
+    for y in range(wall_top + 4, wall_top + wall_height, 6):
+        for x in range(wall_left, wall_left + wall_width):
+            pixel = s.get_at((x, y))
+            darker = (
+                max(0, pixel[0] - 25),
+                max(0, pixel[1] - 20),
+                max(0, pixel[2] - 15),
+                255
+            )
+            s.set_at((x, y), darker)
+            # Ligne de highlight juste au-dessus
+            if y > wall_top + 4:
+                s.set_at((x, y - 1), (
+                    min(255, pixel[0] + 10),
+                    min(255, pixel[1] + 8),
+                    min(255, pixel[2] + 5),
+                    255
+                ))
     
-    # Porte
-    pygame.draw.rect(s, BUILDING["door"], (38, 56, 20, 32))
-    pygame.draw.rect(s, (90, 60, 35), (38, 56, 6, 32))  # Ombre
-    pygame.draw.circle(s, (220, 180, 50), (54, 72), 3)  # Poignée
+    # === TOIT AVEC DÉGRADÉ 3D ===
+    roof_points = [(4, 42), (48, 8), (92, 42)]
+    
+    # Dessiner le toit pixel par pixel avec gradient
+    for y in range(8, 43):
+        for x in range(4, 93):
+            # Vérifier si le point est dans le triangle du toit
+            # Côté gauche : y = 42 - (42-8)/(48-4) * (x-4) = 42 - 0.77*(x-4)
+            # Côté droit : y = 42 - (42-8)/(92-48) * (92-x) = 42 - 0.77*(92-x)
+            
+            left_edge = 42 - 0.77 * (x - 4)
+            right_edge = 42 - 0.77 * (92 - x)
+            
+            if y >= max(8, min(left_edge, right_edge)) and y <= 42:
+                # Position relative dans le toit
+                rel_y = (y - 8) / 34  # 0 en haut, 1 en bas
+                
+                # Côté gauche ou droit ?
+                is_left = x < 48
+                
+                # Gradient de luminosité
+                if is_left:
+                    # Côté ombré
+                    brightness = 0.7 + rel_y * 0.15
+                    base = BUILDING["roof_red_dark"]
+                else:
+                    # Côté éclairé
+                    brightness = 0.9 + rel_y * 0.1
+                    base = BUILDING["roof_red"]
+                
+                # Ajouter du bruit subtil
+                n = wood_noise.get(x * 0.15, y * 0.15)
+                
+                color = (
+                    max(0, min(255, int(base[0] * brightness + n * 8))),
+                    max(0, min(255, int(base[1] * brightness + n * 5))),
+                    max(0, min(255, int(base[2] * brightness + n * 3))),
+                    255
+                )
+                s.set_at((x, y), color)
+    
+    # Texture tuiles améliorée
+    for row, y in enumerate(range(14, 42, 5)):
+        offset = (row % 2) * 5  # Décalage alterné
+        for x in range(8 + offset, 88, 10):
+            if s.get_at((x, y))[3] > 0:  # Si on est sur le toit
+                # Arc de tuile
+                for dx in range(8):
+                    dy = int(2 * math.sin(dx * math.pi / 8))
+                    px, py = x + dx, y + dy
+                    if 0 <= px < 96 and 0 <= py < 96:
+                        pixel = s.get_at((px, py))
+                        if pixel[3] > 0:
+                            # Ombre sous la tuile
+                            s.set_at((px, py), (
+                                max(0, pixel[0] - 15),
+                                max(0, pixel[1] - 10),
+                                max(0, pixel[2] - 5),
+                                255
+                            ))
+    
+    # === PORTE AVEC VOLUME ===
+    door_x, door_y = 38, 56
+    door_w, door_h = 20, 32
+    
+    for y in range(door_y, door_y + door_h):
+        for x in range(door_x, door_x + door_w):
+            # Gradient horizontal sur la porte
+            t = (x - door_x) / door_w
+            brightness = 0.7 + t * 0.35
+            
+            base = BUILDING["door"]
+            color = (
+                int(base[0] * brightness),
+                int(base[1] * brightness),
+                int(base[2] * brightness),
+                255
+            )
+            s.set_at((x, y), color)
+    
+    # Cadre de porte
+    pygame.draw.rect(s, (80, 50, 30), (door_x, door_y, door_w, door_h), 1)
+    
+    # Poignée avec reflet
+    pygame.draw.circle(s, (200, 160, 40), (54, 72), 3)
+    pygame.draw.circle(s, (255, 220, 100), (53, 71), 1)  # Reflet
+    
+    # === FENÊTRES AVEC REFLETS ===
+    def draw_window(wx, wy, ww, wh):
+        # Cadre
+        pygame.draw.rect(s, BUILDING["window_frame"], (wx, wy, ww, wh))
+        
+        # Vitre avec dégradé (reflet du ciel)
+        for y in range(wy + 2, wy + wh - 2):
+            for x in range(wx + 2, wx + ww - 2):
+                t = (y - wy) / wh
+                # Dégradé de lumière (plus clair en haut)
+                r = int(220 * (1 - t * 0.3) + 180 * t * 0.3)
+                g = int(240 * (1 - t * 0.2) + 200 * t * 0.2)
+                b = int(255 * (1 - t * 0.1) + 230 * t * 0.1)
+                s.set_at((x, y), (r, g, b, 255))
+        
+        # Croix de fenêtre
+        pygame.draw.line(s, BUILDING["window_frame"], 
+                        (wx + ww // 2, wy + 2), (wx + ww // 2, wy + wh - 2), 1)
+        pygame.draw.line(s, BUILDING["window_frame"],
+                        (wx + 2, wy + wh // 2), (wx + ww - 2, wy + wh // 2), 1)
+        
+        # Rideaux
+        curtain_color = (180, 140, 140)
+        pygame.draw.rect(s, curtain_color, (wx + 2, wy + 2, 3, wh - 4))
+        pygame.draw.rect(s, curtain_color, (wx + ww - 5, wy + 2, 3, wh - 4))
+        
+        # Reflet diagonal
+        pygame.draw.line(s, (255, 255, 255, 100), 
+                        (wx + 3, wy + 3), (wx + 6, wy + 6), 1)
     
     # Fenêtre gauche
-    pygame.draw.rect(s, BUILDING["window_frame"], (18, 52, 16, 14))
-    pygame.draw.rect(s, BUILDING["window_light"], (20, 54, 12, 10))
-    pygame.draw.line(s, BUILDING["window_frame"], (26, 54), (26, 64), 1)
-    pygame.draw.line(s, BUILDING["window_frame"], (20, 59), (32, 59), 1)
-    # Rideaux
-    pygame.draw.rect(s, (200, 150, 150), (20, 54, 3, 10))
-    pygame.draw.rect(s, (200, 150, 150), (29, 54, 3, 10))
+    draw_window(18, 52, 16, 14)
+    # Fenêtre droite  
+    draw_window(62, 52, 16, 14)
     
-    # Fenêtre droite
-    pygame.draw.rect(s, BUILDING["window_frame"], (62, 52, 16, 14))
-    pygame.draw.rect(s, BUILDING["window_light"], (64, 54, 12, 10))
-    pygame.draw.line(s, BUILDING["window_frame"], (70, 54), (70, 64), 1)
-    pygame.draw.line(s, BUILDING["window_frame"], (64, 59), (76, 59), 1)
-    pygame.draw.rect(s, (200, 150, 150), (64, 54, 3, 10))
-    pygame.draw.rect(s, (200, 150, 150), (73, 54, 3, 10))
+    # === CHEMINÉE AVEC TEXTURE ===
+    pygame.draw.rect(s, BUILDING["stone_dark"], (70, 10, 12, 22))
     
-    # Cheminée
-    pygame.draw.rect(s, BUILDING["stone_dark"], (70, 10, 12, 20))
-    pygame.draw.rect(s, BUILDING["stone_light"], (72, 10, 8, 18))
+    # Briques de cheminée
+    for y in range(10, 32, 4):
+        offset = 2 if (y // 4) % 2 else 0
+        for x in range(70 + offset, 82, 6):
+            pygame.draw.rect(s, BUILDING["stone_light"], (x, y, 5, 3))
+    
+    # Faîte du toit
+    pygame.draw.line(s, (60, 30, 20), (48, 8), (48, 8), 2)
     
     save(s, "house.png")
 
@@ -513,78 +682,278 @@ def make_office():
 # =============================================================================
 
 def make_tiles(season="summer"):
-    """Génère les tuiles de sol avec variations."""
-    print(f"\n🌍 Génération des tuiles ({season})...")
+    """
+    Génère les tuiles de sol avec techniques avancées.
+    
+    Nouvelles techniques :
+    - Perlin Noise pour variations organiques de couleur
+    - Dithering style GBA/Stardew Valley pour transitions
+    - Détails procéduraux (brins d'herbe, cailloux, bulles d'eau)
+    - Dégradés de profondeur pour l'eau
+    """
+    print(f"\n🌍 Génération des tuiles AMÉLIORÉES ({season})...")
     
     palette = SUMMER if season == "summer" else WINTER
     suffix = "" if season == "summer" else "_winter"
     
-    # === HERBE ===
+    # Générateur de bruit unique par saison
+    base_seed = 42 if season == "summer" else 123
+    noise = PerlinNoise(seed=base_seed)
+    
+    # === HERBE AMÉLIORÉE ===
+    # On génère 5 variantes au lieu de 3 pour plus de diversité
+    print("  🌿 Génération de l'herbe avec Perlin Noise...")
+    
+    for variant in range(5):
+        s = create_surface(32, 32)
+        
+        # 1. Base avec gradient de Perlin Noise
+        for y in range(32):
+            for x in range(32):
+                # Valeur de bruit multi-octaves (-1 à 1)
+                n = noise.octave(
+                    (x + variant * 100) * 0.12,  # Décalage par variante
+                    (y + variant * 100) * 0.12,
+                    octaves=3,
+                    persistence=0.5
+                )
+                
+                # Mapper le bruit sur les 3 teintes d'herbe
+                if n < -0.2:
+                    base_color = palette["grass_dark"]
+                elif n > 0.2:
+                    base_color = palette["grass_light"]
+                else:
+                    base_color = palette["grass_medium"]
+                
+                # Légère variation de luminosité additionnelle
+                brightness = 1.0 + n * 0.15
+                color = (
+                    max(0, min(255, int(base_color[0] * brightness))),
+                    max(0, min(255, int(base_color[1] * brightness))),
+                    max(0, min(255, int(base_color[2] * brightness))),
+                    255
+                )
+                s.set_at((x, y), color)
+        
+        # 2. Brins d'herbe procéduraux (plus réalistes)
+        random.seed(base_seed + variant * 50)
+        num_blades = random.randint(12, 20)
+        
+        for _ in range(num_blades):
+            bx = random.randint(2, 29)
+            by = random.randint(8, 30)  # Commencent plus bas
+            height = random.randint(4, 8)
+            
+            # Courbure du brin
+            curve = random.choice([-1, 0, 0, 1])  # Tendance à rester droit
+            
+            # Couleur du brin (légèrement différente du fond)
+            blade_color = random.choice([
+                palette["grass_light"],
+                (min(255, palette["grass_light"][0] + 20),
+                 min(255, palette["grass_light"][1] + 15),
+                 palette["grass_light"][2])
+            ])
+            
+            # Dessiner le brin pixel par pixel
+            for h in range(height):
+                px = bx + (curve * h // 3)
+                py = by - h
+                if 0 <= px < 32 and 0 <= py < 32:
+                    # Fade vers le haut
+                    alpha = 255 - (h * 20)
+                    s.set_at((px, py), (*blade_color, max(150, alpha)))
+        
+        # 3. Détails supplémentaires
+        # Petits points sombres (terre visible)
+        for _ in range(random.randint(3, 8)):
+            dx, dy = random.randint(0, 31), random.randint(0, 31)
+            dark = (palette["grass_dark"][0] - 20, 
+                    palette["grass_dark"][1] - 15,
+                    palette["grass_dark"][2] - 10)
+            s.set_at((dx, dy), (*[max(0, c) for c in dark], 255))
+        
+        # Petites fleurs (rare, seulement sur certaines variantes)
+        if variant in [1, 3] and season == "summer":
+            flower_colors = [
+                (255, 220, 100),  # Jaune
+                (255, 180, 200),  # Rose
+                (200, 180, 255),  # Lavande
+            ]
+            num_flowers = random.randint(1, 2)
+            for _ in range(num_flowers):
+                fx, fy = random.randint(4, 27), random.randint(4, 27)
+                fc = random.choice(flower_colors)
+                # Centre
+                pygame.draw.circle(s, fc, (fx, fy), 2)
+                # Pétales (4 pixels autour)
+                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    s.set_at((fx + dx * 2, fy + dy * 2), (*fc, 200))
+        
+        # Sauvegarder
+        filename = f"grass{suffix}.png" if variant == 0 else f"grass{suffix}_{variant}.png"
+        save(s, filename)
+    
+    # === CHEMIN / TERRE AMÉLIORÉ ===
+    print("  🪨 Génération du chemin avec textures...")
+    
     for variant in range(3):
         s = create_surface(32, 32)
         
-        # Base
-        s.fill(palette["grass_medium"])
+        # Base avec bruit
+        path_noise = PerlinNoise(seed=base_seed + 500 + variant)
         
-        # Variations de couleur
-        for _ in range(40):
-            x, y = random.randint(0, 30), random.randint(0, 30)
-            color = random.choice([palette["grass_light"], palette["grass_dark"]])
-            pygame.draw.rect(s, color, (x, y, 2, 2))
+        for y in range(32):
+            for x in range(32):
+                n = path_noise.octave(x * 0.15, y * 0.15, octaves=2)
+                
+                # Interpoler entre les deux couleurs de terre
+                t = (n + 1) / 2  # Normaliser 0-1
+                color = (
+                    int(palette["dirt_light"][0] * (1 - t) + palette["dirt_dark"][0] * t),
+                    int(palette["dirt_light"][1] * (1 - t) + palette["dirt_dark"][1] * t),
+                    int(palette["dirt_light"][2] * (1 - t) + palette["dirt_dark"][2] * t),
+                    255
+                )
+                s.set_at((x, y), color)
         
-        # Brins d'herbe
-        for _ in range(15):
-            x = random.randint(2, 28)
-            y = random.randint(2, 28)
-            height = random.randint(3, 6)
-            color = palette["grass_light"] if random.random() > 0.5 else palette["grass_dark"]
-            pygame.draw.line(s, color, (x, y), (x + random.randint(-1, 1), y - height), 1)
+        # Cailloux (plus détaillés)
+        random.seed(base_seed + 600 + variant)
+        num_pebbles = random.randint(8, 15)
         
-        # Petites fleurs (rare)
-        if random.random() > 0.7:
-            fx, fy = random.randint(5, 25), random.randint(5, 25)
-            pygame.draw.circle(s, palette["grass_flower"], (fx, fy), 2)
+        for _ in range(num_pebbles):
+            px, py = random.randint(2, 28), random.randint(2, 28)
+            size = random.randint(2, 4)
+            
+            # Couleur du caillou (gris variable)
+            gray = random.randint(100, 160)
+            pebble_color = (gray, gray - 5, gray - 10)
+            highlight = (min(255, gray + 30), min(255, gray + 25), min(255, gray + 20))
+            
+            # Corps du caillou
+            pygame.draw.ellipse(s, pebble_color, (px, py, size, size - 1))
+            # Reflet
+            if size >= 3:
+                s.set_at((px + 1, py), highlight)
         
-        save(s, f"grass{suffix}_{variant}.png" if variant > 0 else f"grass{suffix}.png")
+        # Fissures dans le sol
+        if variant == 2:
+            crack_color = (palette["dirt_dark"][0] - 30,
+                          palette["dirt_dark"][1] - 25,
+                          palette["dirt_dark"][2] - 20)
+            pygame.draw.line(s, crack_color, (5, 10), (12, 18), 1)
+            pygame.draw.line(s, crack_color, (20, 5), (25, 15), 1)
+        
+        filename = f"path{suffix}.png" if variant == 0 else f"path{suffix}_{variant}.png"
+        save(s, filename)
     
-    # === CHEMIN ===
-    s = create_surface(32, 32)
-    s.fill(palette["dirt_light"])
+    # === EAU AMÉLIORÉE (avec dithering et profondeur) ===
+    print("  💧 Génération de l'eau avec dithering et vagues...")
     
-    # Cailloux
-    for _ in range(12):
-        x, y = random.randint(2, 28), random.randint(2, 28)
-        size = random.randint(2, 4)
-        pygame.draw.ellipse(s, palette["dirt_dark"], (x, y, size, size - 1))
-    
-    # Texture
-    for _ in range(20):
-        x, y = random.randint(0, 30), random.randint(0, 30)
-        pygame.draw.rect(s, palette["dirt_dark"], (x, y, 1, 1))
-    
-    save(s, f"path{suffix}.png")
-    
-    # === EAU ===
-    s = create_surface(32, 32)
-    s.fill(palette["water_medium"])
-    
-    # Dégradé
-    for y in range(32):
-        alpha = y / 32
-        color = (
-            int(palette["water_light"][0] * (1 - alpha) + palette["water_dark"][0] * alpha),
-            int(palette["water_light"][1] * (1 - alpha) + palette["water_dark"][1] * alpha),
-            int(palette["water_light"][2] * (1 - alpha) + palette["water_dark"][2] * alpha),
+    for variant in range(3):
+        s = create_surface(32, 32)
+        
+        # 1. Dégradé de base avec dithering (style rétro)
+        # Simuler la profondeur : haut = clair (surface), bas = sombre (fond)
+        for y in range(32):
+            for x in range(32):
+                # Position dans le gradient
+                t = y / 31
+                
+                # Seuil de dithering Bayer 4x4
+                threshold = DitherPattern.get_threshold(x, y)
+                
+                # Appliquer le dithering pour transition douce
+                if t < threshold * 0.5:
+                    color = palette["water_light"]
+                elif t < 0.3 + threshold * 0.3:
+                    color = palette["water_medium"]
+                else:
+                    color = palette["water_dark"]
+                
+                s.set_at((x, y), (*color, 255))
+        
+        # 2. Ajouter du bruit subtil pour effet de mouvement gelé
+        water_noise = PerlinNoise(seed=base_seed + 1000 + variant)
+        for y in range(32):
+            for x in range(32):
+                n = water_noise.get(x * 0.2, y * 0.2)
+                pixel = s.get_at((x, y))
+                
+                # Très légère variation
+                variation = int(n * 8)
+                new_color = (
+                    max(0, min(255, pixel[0] + variation)),
+                    max(0, min(255, pixel[1] + variation)),
+                    max(0, min(255, pixel[2] + variation)),
+                    255
+                )
+                s.set_at((x, y), new_color)
+        
+        # 3. Vagues (lignes de reflet)
+        wave_positions = [4, 12, 20, 28] if variant == 0 else [6, 14, 22]
+        wave_color = (
+            min(255, palette["water_light"][0] + 40),
+            min(255, palette["water_light"][1] + 30),
+            min(255, palette["water_light"][2] + 20),
         )
-        pygame.draw.line(s, color, (0, y), (32, y))
+        
+        for wy in wave_positions:
+            # Décalage horizontal par variante
+            offset = (variant * 3) % 8
+            for wx in range(offset, 32, 8):
+                # Petite ligne de reflet
+                pygame.draw.line(s, wave_color, (wx, wy), (wx + 3, wy), 1)
+                # Pixel plus clair au début
+                s.set_at((wx, wy), (255, 255, 255, 180))
+        
+        # 4. Bulles occasionnelles
+        if variant == 1:
+            bubble_positions = [(8, 20), (22, 12)]
+            for bx, by in bubble_positions:
+                pygame.draw.circle(s, (200, 230, 255), (bx, by), 2)
+                s.set_at((bx, by - 1), (255, 255, 255))  # Reflet
+        
+        filename = f"water{suffix}.png" if variant == 0 else f"water{suffix}_{variant}.png"
+        save(s, filename)
     
-    # Vagues
-    for y in range(4, 28, 8):
-        wave_color = (palette["water_light"][0], palette["water_light"][1], palette["water_light"][2], 150)
-        for x in range(0, 32, 4):
-            pygame.draw.arc(s, wave_color, (x, y, 8, 4), 0, 3.14, 1)
+    # === TUILE DE SABLE (NOUVEAU) ===
+    print("  🏖️ Génération du sable...")
     
-    save(s, f"water{suffix}.png")
+    sand_colors = {
+        "light": (245, 222, 179),
+        "medium": (230, 200, 160),
+        "dark": (210, 180, 140)
+    }
+    
+    for variant in range(2):
+        s = create_surface(32, 32)
+        sand_noise = PerlinNoise(seed=base_seed + 2000 + variant)
+        
+        for y in range(32):
+            for x in range(32):
+                n = sand_noise.octave(x * 0.18, y * 0.18, octaves=2)
+                
+                if n < -0.15:
+                    color = sand_colors["dark"]
+                elif n > 0.15:
+                    color = sand_colors["light"]
+                else:
+                    color = sand_colors["medium"]
+                
+                s.set_at((x, y), (*color, 255))
+        
+        # Grains de sable brillants
+        random.seed(base_seed + 2100 + variant)
+        for _ in range(random.randint(5, 10)):
+            gx, gy = random.randint(0, 31), random.randint(0, 31)
+            s.set_at((gx, gy), (255, 250, 230, 255))
+        
+        filename = f"sand{suffix}.png" if variant == 0 else f"sand{suffix}_{variant}.png"
+        save(s, filename)
+    
+    print(f"  ✨ Tuiles {season} générées avec succès !")
 
 
 # =============================================================================

@@ -84,15 +84,31 @@ class AssetManager:
             "grass": "grass.png",
             "grass_1": "grass_1.png",
             "grass_2": "grass_2.png",
+            "grass_3": "grass_3.png",
+            "grass_4": "grass_4.png",
             "path": "path.png",
+            "path_1": "path_1.png",
+            "path_2": "path_2.png",
             "water": "water.png",
+            "water_1": "water_1.png",
+            "water_2": "water_2.png",
+            "sand": "sand.png",
+            "sand_1": "sand_1.png",
             
             # === TUILES HIVER ===
             "grass_winter": "grass_winter.png",
             "grass_winter_1": "grass_winter_1.png",
             "grass_winter_2": "grass_winter_2.png",
+            "grass_winter_3": "grass_winter_3.png",
+            "grass_winter_4": "grass_winter_4.png",
             "path_winter": "path_winter.png",
+            "path_winter_1": "path_winter_1.png",
+            "path_winter_2": "path_winter_2.png",
             "water_winter": "water_winter.png",
+            "water_winter_1": "water_winter_1.png",
+            "water_winter_2": "water_winter_2.png",
+            "sand_winter": "sand_winter.png",
+            "sand_winter_1": "sand_winter_1.png",
         }
 
         print(f"📂 Chargement des images depuis : {img_dir}")

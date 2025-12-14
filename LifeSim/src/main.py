@@ -30,6 +30,7 @@ from src.ui.dialogue_ui import MessageBox, ContextMenu
 from src.ui.minimap import MiniMap
 from src.ui.house_interior import ModernHouseInterior
 from src.ui.shop_ui import ShopUI
+from src.core.lighting import LightingSystem, create_streetlamp, create_window_light
 
 class Game:
     def __init__(self):
@@ -121,9 +122,39 @@ class Game:
         self.last_message = ""
         self.message_timer = 0
         
-        # (Le time_manager est déjà géré au point 3, tu peux nettoyer si tu as des doublons)
-        self.night_filter = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        self.night_filter.set_alpha(0)
+        # 7. SYSTÈME D'ÉCLAIRAGE DYNAMIQUE
+        self.lighting = LightingSystem(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self._setup_world_lights()
+    
+    def _setup_world_lights(self):
+        """
+        Configure les sources de lumière du monde extérieur.
+        Ces lumières s'activent automatiquement la nuit.
+        """
+        # Lampadaires le long du chemin principal
+        # Chemin vertical au centre (x = ~400)
+        create_streetlamp(self.lighting, 400, 100)
+        create_streetlamp(self.lighting, 400, 250)
+        create_streetlamp(self.lighting, 400, 400)
+        create_streetlamp(self.lighting, 400, 550)
+        
+        # Lampadaire près du shop
+        create_streetlamp(self.lighting, 550, 150)
+        
+        # Fenêtres éclairées de la maison (s'allument la nuit)
+        house_x, house_y = 300, 50
+        # Fenêtre gauche de la maison
+        create_window_light(self.lighting, house_x + 26, house_y + 59)
+        # Fenêtre droite de la maison
+        create_window_light(self.lighting, house_x + 70, house_y + 59)
+        
+        # Fenêtres du shop
+        shop_x, shop_y = 600, 100
+        create_window_light(self.lighting, shop_x + 29, shop_y + 58)
+        
+        # Lumière à l'entrée du bureau
+        workplace_x, workplace_y = 100, 400
+        create_streetlamp(self.lighting, workplace_x + 40, workplace_y - 20)
 
     def switch_location(self, new_location):
         """Gère la transition entre l'extérieur et l'intérieur"""
@@ -381,16 +412,20 @@ class Game:
             pygame.draw.ellipse(self.screen, (30, 80, 30), (shadow_pos[0], shadow_pos[1], 20, 8))
             self.screen.blit(self.player.sprite, self.player.rect)
 
-         # --- AJOUT : FILTRE NUIT ---
-        # On demande l'intensité de la nuit
-        alpha = self.time_manager.get_night_intensity()
-        if alpha > 0:
-            # On configure la transparence
-            self.night_filter.set_alpha(alpha)
-            # On remplit avec la couleur bleue nuit définie dans settings
-            self.night_filter.fill(NIGHT_COLOR)
-            # On colle par-dessus tout le reste
-            self.screen.blit(self.night_filter, (0, 0))
+        # --- SYSTÈME D'ÉCLAIRAGE DYNAMIQUE ---
+        # Applique l'ambiance jour/nuit et les sources de lumière
+        if self.location == "world":
+            # Mise à jour basée sur l'heure du jeu
+            dt = self.clock.get_time() / 1000.0
+            self.lighting.update(dt, self.time_manager)
+            
+            # Rendu de l'éclairage (ambiance + lumières)
+            self.lighting.render(self.screen)
+            
+            # Halo autour du joueur la nuit (simule une lanterne)
+            if self.lighting.is_night():
+                player_center = self.player.rect.center
+                self.lighting.render_player_light(self.screen, player_center, radius=100)
         
         # 3. UI MODERNE
         self.draw_ui()
